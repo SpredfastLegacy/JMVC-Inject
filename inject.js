@@ -29,15 +29,14 @@ steal.plugins('jquery','jquery/class').then(function($){
 			// the factories are already built, so we just need to get the inject definitions
 			// to create the mapping
 			if(name && name.controller) {
-				controller = name;
+				controller = name.controller;
 				name = getName(controller);
 
 			}
 
 			// find matching definitions and collapse them into def
-			$.each(findAll(defs,function(d) {
-				return name && d.name && d.name === name &&
-					(!controller || !d.controller || controller.element.is(d.controller));
+			$.each(findAll(defs[name] || [],function(d) {
+				return (!controller || !d.controller || controller.element.is(d.controller));
 			}),function() {
 				$.extend(true,def,this);
 			});
