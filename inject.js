@@ -1,5 +1,10 @@
 steal.plugins('jquery','jquery/class').then(function($){
 
+	var factoryName = /^([^(]+)(\((.*?)?\))?$/;
+
+	var noop = function() {},
+		error = window.console && console.error || noop;
+
 	function injector() {
 		var factories = {},
 			results = {},
@@ -12,15 +17,42 @@ steal.plugins('jquery','jquery/class').then(function($){
 				$.extend(true,def,d);
 			});
 
+			var parts = factoryName.exec(name),
+				isParameterized = !!parts[2],
+				args = findAll((parts[3] || '').split(','));
+			name = parts[1];
+
 			if(def.factory) {
 				factoryFn = def.factory.injected ? def.factory(resolver) : def.factory;
 				factory = function() {
-					return results[name] || (results[name] = factoryFn());
+					// everything is cached, except TODO non-singletons
+					if(!isParameterized && arguments.length) {
+						throw new Error(name+' is not a parameterized factory, it cannot take arguments. If you want to pass it arguments, the name must end with "()".');
+					}
+					return def.singleton === false ?
+						factoryFn.apply(this,arguments) :
+						cache(name,factoryFn,arguments);
 				};
 			}
 
 			factories[name] = factory;
+
+			if(def.eager && factory) {
+				factory();
+			}
 		});
+
+		function cache(name,fn,args) {
+			var array = results[name] || (results[name] = []),
+				result = matchArgs(array,args || []);
+
+			if(!result) {
+				result = { value: fn.apply(this,args), args: args };
+				array.push(result);
+			}
+
+			return result.value;
+		}
 
 		function resolver(name) {
 			var configs, controller, mapping, def = {};
@@ -46,12 +78,48 @@ steal.plugins('jquery','jquery/class').then(function($){
 
 			return resolve;
 			function resolve(name) {
-				name = mapping(name);
-				return factories[name] && factories[name]();
+				var parts = factoryName.exec(mapping(sub(name))),
+					realName = parts[1],
+					args = map(findAll((parts[3] || '').split(',')),get);
+
+				if(!factories[realName]) {
+					throw new Error('Cannot resolve '+realName+' AKA '+name);
+				}
+
+				return factories[realName].apply(this,args);
+
+				// TODO enable for non-controllers? would be accessing globals...
+				function sub(name) {
+					return controller ? substitute(name,controller && controller.options) : name;
+				}
+
+				function get(path) {
+					if(!controller) {
+						throw new Error('parameterized factories can only be used on controllers. Cannot resolve "'+path+' for "'+name+'"" AKA '+realName);
+					}
+					return $.String.getObject(path,[controller.options]);
+				}
 			}
 		}
 
-		return whenInjected(resolver);
+		var inj = whenInjected(resolver);
+
+		inj.clearCache = function() {
+			keys = flatten(toArray(arguments));
+			if(keys.length) {
+				map(keys,function(key) {
+					if(key.args) {
+						matchArgs(results[key.name],key.args,true)
+					} else {
+						delete results[key];
+					}
+				});
+			} else {
+				results = {};
+			}
+		};
+
+		return inj;
 	}
 
 	injector.when = function() {
@@ -65,6 +133,12 @@ steal.plugins('jquery','jquery/class').then(function($){
 		}
 	};
 
+	function substitute(string,options) {
+		return string.replace(/\{(.+?)\}/g,function(param,name) {
+			return $.String.getObject(name,[options]);
+		});
+	}
+
 	function whenInjected(resolver) {
 		return when;
 		function when() {
@@ -77,8 +151,13 @@ steal.plugins('jquery','jquery/class').then(function($){
 			function injectedFor(name) {
 				return injected;
 				function injected() {
-					var target = this,
-						deferreds = map(dependencies,resolver(name || nameOf(target)));
+					try {
+						var target = this,
+							deferreds = map(dependencies,resolver(name || nameOf(target),target,true));
+					} catch(e) {
+						error('Error resolving for target:',target);
+						throw e;
+					}
 					return $.when.apply($,deferreds).pipe(function() {
 						return fn.apply(target,arguments);
 					});
@@ -104,6 +183,24 @@ steal.plugins('jquery','jquery/class').then(function($){
 		return mapProperty;
 		function mapProperty(property) {
 			return config.inject[property] || property;
+		}
+	}
+
+	function matchArgs(results,args,del) {
+		if(!results) return;
+
+		var miss, result, idx;
+		for(var i = 0; i < results.length; i++) {
+			result = results[i];
+			miss = find(result.args || [],function(index,arg) {
+				idx = index;
+				return args[index] !== arg;
+			});
+
+			if(!miss) {
+				if(del) delete result[i];
+				return result;
+			}
 		}
 	}
 
@@ -166,9 +263,9 @@ steal.plugins('jquery','jquery/class').then(function($){
 	function find(array,fn,context) {
 		var result;
 		fn = fn || function(it) { return it; };
-		$.each(array,function(index) {
-			if(fn.call(context,this,index)) {
-				result = this;
+		$.each(array,function(index,value) {
+			if(fn.call(context,value,index)) {
+				result = value;
 			}
 		});
 		return result;
@@ -177,11 +274,12 @@ steal.plugins('jquery','jquery/class').then(function($){
 	function findAll(array,fn,context) {
 		var result = [];
 		fn = fn || function(it) { return it; };
-		$.each(array,function(index) {
-			if(fn.call(context,this,index)) {
-				result.push(this);
+		$.each(array,function(index,value) {
+			if(fn.call(context,value,index)) {
+				result.push(value);
 			}
 		});
 		return result;
 	}
+
 });
