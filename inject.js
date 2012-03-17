@@ -25,13 +25,10 @@ steal.plugins('jquery','jquery/class').then(function($){
 			if(def.factory) {
 				factoryFn = def.factory.injected ? def.factory(resolver) : def.factory;
 				factory = function() {
-					// everything is cached, except TODO non-singletons
 					if(!isParameterized && arguments.length) {
 						throw new Error(name+' is not a parameterized factory, it cannot take arguments. If you want to pass it arguments, the name must end with "()".');
 					}
-					return def.singleton === false ?
-						factoryFn.apply(this,arguments) :
-						cache(name,factoryFn,arguments);
+					return factoryFn.apply(this,arguments);
 				};
 			}
 
@@ -41,18 +38,6 @@ steal.plugins('jquery','jquery/class').then(function($){
 				factory();
 			}
 		});
-
-		function cache(name,fn,args) {
-			var array = results[name] || (results[name] = []),
-				result = matchArgs(array,args || []);
-
-			if(!result) {
-				result = { value: fn.apply(this,args), args: args };
-				array.push(result);
-			}
-
-			return result.value;
-		}
 
 		function resolver(name) {
 			var configs, controller, mapping, def = {};
@@ -102,9 +87,26 @@ steal.plugins('jquery','jquery/class').then(function($){
 			}
 		}
 
-		var inj = whenInjected(resolver);
+		return whenInjected(resolver);
+	}
 
-		inj.clearCache = function() {
+	injector.when = function() {
+		// for factory functions, we have to late bind the resolver, so we need to flag
+		// the factory function
+		var args = toArray(arguments);
+		injectedFactory.injected = true;
+		return injectedFactory;
+		function injectedFactory(resolver) {
+			return whenInjected(resolver).apply(this,args);
+		}
+	};
+
+	injector.cache = cache;
+
+	function cache() {
+		var results = {};
+
+		singleton.clear = function() {
 			keys = flatten(toArray(arguments));
 			if(keys.length) {
 				map(keys,function(key) {
@@ -119,19 +121,22 @@ steal.plugins('jquery','jquery/class').then(function($){
 			}
 		};
 
-		return inj;
-	}
+		return singleton;
+		function singleton(name,fn) {
+			return function cachedFactory() {
+				var args = toArray(arguments),
+					array = results[name] || (results[name] = []),
+					result = matchArgs(array,args || []);
 
-	injector.when = function() {
-		// for factory functions, we have to late bind the resolver, so we need to flag
-		// the factory function
-		var args = toArray(arguments);
-		injectedFactory.injected = true;
-		return injectedFactory;
-		function injectedFactory(resolver) {
-			return whenInjected(resolver).apply(this,args);
+				if(!result) {
+					result = { value: fn.apply(this,args), args: args };
+					array.push(result);
+				}
+
+				return result.value;
+			}
 		}
-	};
+	}
 
 	function substitute(string,options) {
 		return string.replace(/\{(.+?)\}/g,function(param,name) {

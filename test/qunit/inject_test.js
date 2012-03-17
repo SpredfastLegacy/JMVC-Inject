@@ -226,33 +226,35 @@ test("singleton: false", function(){
 });
 
 test("clearCache", function(){
+	var singleton = injector.cache();
 	var requested = false,
 		calls = 0,
 		when = injector({
 		name: 'foo',
 		singleton: true,
-		factory: function(input) {
+		factory: singleton('foo',function(input) {
 			return ++calls;
-		}
+		})
 	});
 
 	when('foo',function(i) { equals(i,1); })();
 	when('foo',function(i) { equals(i,1); })();
-	when.clearCache('foo');
+	singleton.clear('foo');
 	when('foo',function(i) { equals(i,2); })();
 });
 
 test("eager: true", function(){
 	expect(2);
 
+	var singleton = injector.cache();
 	var requested = false,
 		when = injector({
 		name: 'foo',
 		eager: true,
-		factory: function(input) {
+		factory: singleton('foo',function(input) {
 			ok(!requested,'created before request');
 			return 123;
-		}
+		})
 	});
 
 	requested = true;
@@ -264,3 +266,8 @@ test("eager: true", function(){
 test("reset?", function(){
 	ok(false,"How do we reset? What's the right way to do it?");
 });
+
+test("context sharing", function(){
+	ok(false,"How do we share context?");
+});
+
