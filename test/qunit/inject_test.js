@@ -7,9 +7,9 @@ module("inject",{
 test("injecting functions", function(){
 	expect(1);
 
-	var when = injector({
+	var injector = inject({
 		name: 'foo',
-		factory: injector.when('bar',function(bar) {
+		factory: inject.require('bar',function(bar) {
 			return bar.baz;
 		})
 	},{
@@ -19,7 +19,7 @@ test("injecting functions", function(){
 		}
 	});
 
-	when('foo',function(foo) {
+	injector('foo',function(foo) {
 		equals(foo,123);
 	})();
 });
@@ -28,9 +28,9 @@ test("async dependencies", function(){
 
 	expect(1);
 
-	var when = injector({
+	var injector = inject({
 		name: 'foo',
-		factory: injector.when('bar',function(bar) {
+		factory: inject.require('bar',function(bar) {
 			var def = $.Deferred();
 			setTimeout(function() {
 				def.resolve(bar.baz);
@@ -49,7 +49,7 @@ test("async dependencies", function(){
 	});
 
 	stop();
-	when('foo',function(foo) {
+	injector('foo',function(foo) {
 		equals(foo,123);
 		start();
 	})();
@@ -58,7 +58,7 @@ test("async dependencies", function(){
 
 test("injecting methods", function(){
 
-	var when = injector({
+	var injector = inject({
 		name: 'foo',
 		factory: function() {
 			var def = $.Deferred();
@@ -75,7 +75,7 @@ test("injecting methods", function(){
 	});
 
 	$.Class('TestClass',{},{
-		foo: when('thing',function(thing) {
+		foo: injector('thing',function(thing) {
 			equals(thing.bar,123);
 			start();
 		})
@@ -92,7 +92,7 @@ test("injecting controller methods scoped by selector", function(){
 
 	expect(2);
 
-	var when = injector({
+	var injector = inject({
 		name: 'foo',
 		factory: function() {
 			var def = $.Deferred();
@@ -120,7 +120,7 @@ test("injecting controller methods scoped by selector", function(){
 	});
 
 	$.Controller('TestController',{},{
-		init: when('thing',function(foo) {
+		init: injector('thing',function(foo) {
 			this.element.html(foo.bar);
 			finish();
 		})
@@ -146,7 +146,7 @@ test("injecting controller methods scoped by selector", function(){
 
 test("options substitution", function(){
 
-	var when = injector({
+	var injector = inject({
 		name: 'foo',
 		factory: function() {
 			var def = $.Deferred();
@@ -162,7 +162,7 @@ test("options substitution", function(){
 			thing: 'foo'
 		}
 	},{
-		init: when('{thing}',function(foo) {
+		init: injector('{thing}',function(foo) {
 			equals(foo.bar,123);
 			start();
 		})
@@ -176,7 +176,7 @@ test("options substitution", function(){
 
 test("parameterized factories", function(){
 
-	var when = injector({
+	var injector = inject({
 		name: 'foo()',
 		factory: function(input) {
 			var def = $.Deferred();
@@ -197,7 +197,7 @@ test("parameterized factories", function(){
 			blah: 111
 		}
 	},{
-		init: when('thing',function(foo) {
+		init: injector('thing',function(foo) {
 			equals(foo.bar,234);
 			start();
 		})
@@ -212,7 +212,7 @@ test("parameterized factories", function(){
 test("singleton: false", function(){
 	var requested = false,
 		calls = 0,
-		when = injector({
+		injector = inject({
 		name: 'foo',
 		singleton: false,
 		factory: function(input) {
@@ -220,16 +220,16 @@ test("singleton: false", function(){
 		}
 	});
 
-	when('foo',function(i) { equals(i,1); })();
-	when('foo',function(i) { equals(i,2); })();
-	when('foo',function(i) { equals(i,3); })();
+	injector('foo',function(i) { equals(i,1); })();
+	injector('foo',function(i) { equals(i,2); })();
+	injector('foo',function(i) { equals(i,3); })();
 });
 
 test("clearCache", function(){
-	var singleton = injector.cache();
+	var singleton = inject.cache();
 	var requested = false,
 		calls = 0,
-		when = injector({
+		injector = inject({
 		name: 'foo',
 		singleton: true,
 		factory: singleton('foo',function(input) {
@@ -237,18 +237,18 @@ test("clearCache", function(){
 		})
 	});
 
-	when('foo',function(i) { equals(i,1); })();
-	when('foo',function(i) { equals(i,1); })();
+	injector('foo',function(i) { equals(i,1); })();
+	injector('foo',function(i) { equals(i,1); })();
 	singleton.clear('foo');
-	when('foo',function(i) { equals(i,2); })();
+	injector('foo',function(i) { equals(i,2); })();
 });
 
 test("eager: true", function(){
 	expect(2);
 
-	var singleton = injector.cache();
+	var singleton = inject.cache();
 	var requested = false,
-		when = injector({
+		injector = inject({
 		name: 'foo',
 		eager: true,
 		factory: singleton('foo',function(input) {
@@ -258,16 +258,133 @@ test("eager: true", function(){
 	});
 
 	requested = true;
-	when('foo',function(foo) {
+	injector('foo',function(foo) {
 		equals(123,foo);
 	})();
 });
 
-test("reset?", function(){
-	ok(false,"How do we reset? What's the right way to do it?");
-});
-
 test("context sharing", function(){
-	ok(false,"How do we share context?");
+	var singleton = inject.cache();
+	var shared = inject({
+		name: 'sharedFoo',
+		factory: singleton('sharedFoo',function() {
+			return {qux:987};
+		})
+	});
+
+	// sharing context is as simple as using the shared context to inject
+	// factories in another context
+	var contextA = inject({
+		name: 'bar',
+		factory: shared('sharedFoo',function(foo) {
+			return {bar:foo};
+		})
+	});
+
+	var contextB = inject({
+		name: 'foo',
+		// the shared context can be used as a factory in another context
+		factory: shared('sharedFoo',function(foo){ return foo; })
+	},{
+		name: 'baz',
+		factory: inject.require('foo',function(foo) {
+			return {baz:foo};
+		})
+	},{
+		name: 'foo2',
+		factory: function() {
+			return {qux:654};
+		}
+	},{
+		name: 'multipleContexts',
+		// you can also mix other contexts with the current context
+		// however, inject.require() must be on the outside if you want it to inject from the injector being defined
+		// note the resulting order of the arguments
+		factory: inject.require('foo2',shared('sharedFoo',function(foo,foo2) {
+			return String(foo.qux) + String(foo2.qux);
+		}))
+	});
+
+	contextA('bar',function(bar) {
+		equals(bar.bar.qux,987);
+	})();
+
+	contextB('baz',function(baz) {
+		equals(baz.baz.qux,987);
+	})();
+
+	contextB('multipleContexts',function(result) {
+		equals(result,'987654');
+	})();
+
 });
 
+test("setting the context", function(){
+	var injector = inject({
+		name: 'foo',
+		factory: function() { return 123; }
+	});
+	var injector2 = inject({
+		name: 'foo',
+		factory: function() { return 456; }
+	});
+
+	inject.useInjector(injector,function() {
+		inject.require('foo',function(foo) {
+			equals(foo,123);
+			inject.useInjector(injector2,function() {
+				inject.require('foo',function(foo2) {
+					equals(foo2,456);
+				})();
+			})();
+		})();
+	})();
+});
+
+test("capturing the current context", function(){
+	var injector = inject({
+		name: 'foo',
+		factory: function() { return 123; }
+	});
+
+	stop();
+	inject.useInjector(injector,function() {
+		setTimeout(inject.useCurrent(inject.require('foo',function(foo) {
+			equals(foo,123);
+			start();
+		})),200);
+	})();
+});
+
+test("error on no context", function(){
+	expect(1);
+	try {
+		inject.require('foo',function(foo2) {
+			ok(false);
+		})();
+	} catch(expected) {
+		ok(true,'error');
+	}
+});
+
+test("context inside a named function", function(){
+	var injector = inject({
+		name: 'foo',
+		factory: function() { return 123; }
+	},{
+		name: 'bar',
+		inject: {
+			foo: 'baz'
+		}
+	},{
+		name: 'baz',
+		factory: function() { return 456; }
+	});
+
+	injector.named('bar')('foo',function(foo) {
+		equals(foo,456);
+		inject.require('foo',function(realFoo) {
+			equals(realFoo,123);
+		})();
+	})();
+});

@@ -1,0 +1,117 @@
+
+[What is dependency injection?](https://github.com/cujojs/wire/wiki/IOC)
+
+# Usage
+
+To create an injector, call `inject` with the injection definitions. The return value of
+`inject` is a function that is the injector.
+
+In the examples, we name the injector variable `injector`, but you can call it whatever you want. e.g., `require`, `when`, etc.
+
+## Injecting plain functions
+
+	var injector = inject({
+		name: 'foo',
+		factory: function() {
+			// your factory function can do anything. if you need to make ajax calls or use
+			// a web worker or something, just return a jQuery.Deferred
+			return 2 * 3;
+		}
+	});
+
+	var myFunc = injector('foo',function(foo) {
+		alert(foo);
+	});
+
+	myFunc(); // alerts 6
+
+Notice that the names passed to injector have to match the name of the factory.
+
+## Named Functions
+
+What if you don't know the names of the factory you want injected or the names vary?
+
+	var injector = inject({
+		name: 'bar',
+		factory: function() {
+			// your factory function can do anything. if you need to make ajax calls or use
+			// a web worker or something, just return a jQuery.Deferred
+			return 2 * 3;
+		}
+	},{
+		name: 'alertFoo',
+		inject: {
+			foo: 'bar'
+		}
+	});
+
+    var myFunc = injector.named('alertFoo')('foo',function(foo) {
+		alert(foo);
+	});
+
+	myFunc(); // alert 6
+
+## Injecting Class methods
+
+If you're injecting a method on a class defined with $.Class (jQueryMX),
+you can inject any function in that class by using the class name.
+
+	TODO
+
+## Injecting Controller methods
+
+	TODO
+
+## Injector Context
+
+Sometimes you need to write a function that will be used in multiple contexts.
+You can't use the injector directly in this case, as that would create a function
+that will be injected by just that injector. You need a way to create a function
+that can use whatever context it happens to be called in.
+
+### Using the current context
+
+    alertFoo: inject.require('foo',function(foo) {
+    	alert(foo);
+    })
+
+    // ...
+
+
+
+### Setting/changing the context
+
+	var injector = inject(...);
+    inject.useInjector(injector,function() {
+    	// functions like this will resolve foo from injector
+    	inject.require('foo',function(foo) {
+    		// ...
+    	})();
+    })();
+
+### Capturing the current context
+
+	setTimeout(inject.useCurrent(function() {
+		// do things
+	}),500);
+
+
+# Functional Dependency Injection for JavaScriptMVC
+
+In a traditional dependency injection paradigm, the container manages objects that
+are connected to each other through the wiring spec. Injection is do by either setting
+properties or passing values to a constructor function (which typically then sets the
+properties on the object itself).
+
+While that is a paradigm that works well in object oriented languages, it's more natural
+in a functional language like JavaScript to inject functions instead.
+
+## Advantages of injecting functions
+
+ * No mutable state - no objects are modified, so it isn't possible for property names to conflict
+   or for inject values to be changed.
+ * Late binding - dependencies do not have to be resolved until they are actually needed,
+   so you can defer the creation of expensive objects if desired.
+ * Rebinding - if the dependency to be injected changes, the next time the function is called,
+   it will receive the new value automatically.
+

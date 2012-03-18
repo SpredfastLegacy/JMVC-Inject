@@ -5,10 +5,15 @@ steal.plugins('jquery','jquery/class').then(function($){
 	var noop = function() {},
 		error = window.console && console.error || noop;
 
-	function injector() {
+	// the global stack of injectors
+	var CONTEXT = [];
+
+	function inject() {
 		var factories = {},
 			results = {},
-			defs = groupBy(flatten(toArray(arguments)),'name');
+			defs = groupBy(flatten(toArray(arguments)),'name'),
+			injector = whenInjected(resolver),
+			eager = [];
 
 		// pre-create factories
 		$.each(defs,function(name,defs) {
@@ -22,26 +27,32 @@ steal.plugins('jquery','jquery/class').then(function($){
 				args = findAll((parts[3] || '').split(','));
 			name = parts[1];
 
-			if(def.factory) {
-				factoryFn = def.factory.injected ? def.factory(resolver) : def.factory;
+			factoryFn = def.factory;
+			if(factoryFn) {
 				factory = function() {
 					if(!isParameterized && arguments.length) {
 						throw new Error(name+' is not a parameterized factory, it cannot take arguments. If you want to pass it arguments, the name must end with "()".');
 					}
 					return factoryFn.apply(this,arguments);
 				};
+				if(def.eager) {
+					eager.push(factory);
+				}
 			}
 
 			factories[name] = factory;
-
-			if(def.eager && factory) {
-				factory();
-			}
 		});
+
+		// run the eager factories (presumably they cache themselves)
+		// eager factories are built in to make it easier to resolve dependencies of the eager factory
+		useInjector(injector,function() {
+			map(eager,function(factory) {
+				factory();
+			});
+		}).call(this);
 
 		function resolver(name) {
 			var configs, controller, mapping, def = {};
-
 
 			// the factories are already built, so we just need to get the inject definitions
 			// to create the mapping
@@ -87,22 +98,49 @@ steal.plugins('jquery','jquery/class').then(function($){
 			}
 		}
 
-		return whenInjected(resolver);
+		return injector;
 	}
 
-	injector.when = function() {
-		// for factory functions, we have to late bind the resolver, so we need to flag
-		// the factory function
-		var args = toArray(arguments);
-		injectedFactory.injected = true;
-		return injectedFactory;
-		function injectedFactory(resolver) {
-			return whenInjected(resolver).apply(this,args);
+	// support for injecting using the current context
+	// TODO named functions?
+	inject.require = function() {
+		var dependencies = toArray(arguments);
+		return injectCurrent;
+		function injectCurrent() {
+			var context = last(CONTEXT);
+			if(!context) {
+				throw new Error("There is no current injector. You need to call an inject.useInjector or inject.useCurrent function.");
+			}
+			return context.apply(this,dependencies). // create an injected function
+				apply(this,arguments); // and call it
 		}
 	};
 
-	injector.cache = cache;
+	inject.useInjector = useInjector;
 
+	inject.useCurrent = function(fn) {
+		var context = last(CONTEXT);
+		if(!context) {
+			throw new Error("There is no current injector. You need to call an inject.useInjector function.");
+		}
+		return inject.useInjector(context,fn);
+	};
+
+	inject.cache = cache;
+
+	function useInjector(injector,fn) {
+		return function() {
+			try {
+				CONTEXT.push(injector);
+				return fn.apply(this,arguments);
+			} finally {
+				CONTEXT.pop();
+			}
+		};
+	}
+
+	// cache offers a simple mechanism for creating (and clearing) singletons
+	// without caching, the injected values are recreated/resolved each time
 	function cache() {
 		var results = {};
 
@@ -145,28 +183,33 @@ steal.plugins('jquery','jquery/class').then(function($){
 	}
 
 	function whenInjected(resolver) {
-		return when;
-		function when() {
-			var args = toArray(arguments),
-				fn = last(args),
-				dependencies = initial(args),
-				injector = injectedFor();
-			injector.named = injectedFor;
-			return injector;
-			function injectedFor(name) {
-				return injected;
+		// XXX to support named functions, we have to expose injectorFor, which allows the name to be curried
+		var injector = injectorFor(); // no name resolves by the target object
+		injector.named = injectorFor;
+		return injector;
+		// injectorFor creates then when() function, which is what the user sees as the injector
+		function injectorFor(name) {
+			return when;
+			function when() {
+				// when takes a list of the dependencies and the function to inject
+				var whenArgs = toArray(arguments),
+					fn = last(whenArgs),
+					dependencies = initial(whenArgs);
+				return useInjector(injector,injected); // set the context when the injected function is called
+				// and returns a function that will resolve the dependencies and pipe them into the function
 				function injected() {
 					try {
 						var target = this,
+							args = toArray(arguments),
 							deferreds = map(dependencies,resolver(name || nameOf(target),target,true));
 					} catch(e) {
 						error('Error resolving for target:',target);
 						throw e;
 					}
-					return $.when.apply($,deferreds).pipe(function() {
+					return $.when.apply($,deferreds.concat(args)).pipe(function() {
 						return fn.apply(target,arguments);
 					});
-				};
+				}
 			}
 		}
 	}
@@ -209,7 +252,7 @@ steal.plugins('jquery','jquery/class').then(function($){
 		}
 	}
 
-	window.injector = injector;
+	window.inject = inject;
 
 	// Support Functions
 
