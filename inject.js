@@ -2,13 +2,13 @@
   var __slice = Array.prototype.slice;
 
   steal.plugins('jquery', 'jquery/class').then(function($) {
-    var CONTEXT, cache, error, exports, factoryName, find, getName, groupBy, inject, last, mapper, matchArgs, nameOf, substitute, useInjector, whenInjected;
+    var CONTEXT, cache, error, exports, factoryName, find, getName, groupBy, inject, last, makeFactory, mapper, matchArgs, nameOf, substitute, useInjector, whenInjected;
     exports = window;
     factoryName = /^([^(]+)(\((.*?)?\))?$/;
     error = window.console && console.error || function() {};
     CONTEXT = [];
     inject = function() {
-      var arg, args, configs, d, def, defs, eager, factories, factory, factoryFn, injector, isParameterized, name, parts, resolver, results, _i, _j, _len, _len2, _ref, _ref2, _ref3;
+      var configs, d, def, defs, eager, factories, factory, injector, name, resolver, results, _i, _len, _ref;
       defs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
       factories = {};
       results = {};
@@ -66,32 +66,15 @@
           d = configs[_i];
           $.extend(true, def, d);
         }
-        parts = factoryName.exec(name);
-        isParameterized = !!parts[2];
-        _ref3 = (_ref = (_ref2 = parts[3]) != null ? _ref2.split(',') : void 0) != null ? _ref : [];
-        for (_j = 0, _len2 = _ref3.length; _j < _len2; _j++) {
-          arg = _ref3[_j];
-          if (arg) args = arg;
-        }
-        name = parts[1];
-        factoryFn = def.factory;
-        if (factoryFn) {
-          factory = factoryFn;
-          /*
-          				->
-          					if arguments.length && !isParameterized
-          						throw new Error("#{name} is not a parameterized factory, it cannot take arguments. If you want to pass it arguments, the name must end with '()'.")
-          					factoryFn.apply(this,arguments)
-          */
-          if (def.eager) eager.push(factory);
-        }
+        _ref = makeFactory(def), name = _ref[0], factory = _ref[1];
+        if (def.eager) eager.push(factory);
         factories[name] = factory;
       }
       useInjector(injector, function() {
-        var factory, _k, _len3, _results;
+        var factory, _j, _len2, _results;
         _results = [];
-        for (_k = 0, _len3 = eager.length; _k < _len3; _k++) {
-          factory = eager[_k];
+        for (_j = 0, _len2 = eager.length; _j < _len2; _j++) {
+          factory = eager[_j];
           _results.push(factory());
         }
         return _results;
@@ -168,6 +151,22 @@
         }
       };
       return singleton;
+    };
+    makeFactory = function(def) {
+      var fn, fullName, name, params, _ref;
+      _ref = factoryName.exec(def.name), fullName = _ref[0], name = _ref[1], params = _ref[2];
+      fn = def.factory;
+      return [
+        name, function() {
+          if (!fn) {
+            throw new Error("" + fullName + " does not have a factory function so it cannot be injected into a function.");
+          }
+          if (arguments.length && !params) {
+            throw new Error("" + fullName + " is not a parameterized factory, it cannot take arguments. If you want to pass it arguments, the name must end with '()'.");
+          }
+          return fn.apply(this, arguments);
+        }
+      ];
     };
     substitute = function(string, options) {
       return string.replace(/\{(.+?)\}/g, function(param, name) {

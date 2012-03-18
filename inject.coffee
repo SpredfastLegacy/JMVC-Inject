@@ -5,8 +5,8 @@ steal.plugins('jquery','jquery/class').then ($) ->
 	factoryName = ///
 		^			# match the whole string
 		([^(]+)		# everything up the ( or the end is the real name
-		(\(
-			(.*?)?	# 2nd capture is the arguments, unparsed
+		(\(			# 2nd capture is the ()
+			(.*?)?	# 3rd capture is the arguments, unparsed
 		\))?
 		$
 	///
@@ -66,22 +66,9 @@ steal.plugins('jquery','jquery/class').then ($) ->
 
 			$.extend(true,def,d) for d in configs
 
-			parts = factoryName.exec(name)
-			isParameterized = !!parts[2]
-			args = arg for arg in parts[3]?.split(',') ? [] when arg
-			name = parts[1]
+			[name,factory] = makeFactory(def)
 
-			factoryFn = def.factory
-			if(factoryFn)
-				factory = factoryFn;
-				###
-				->
-					if arguments.length && !isParameterized
-						throw new Error("#{name} is not a parameterized factory, it cannot take arguments. If you want to pass it arguments, the name must end with '()'.")
-					factoryFn.apply(this,arguments)
-				###
-
-				eager.push(factory) if def.eager
+			eager.push(factory) if def.eager
 
 			factories[name] = factory
 
@@ -145,6 +132,17 @@ You need to call an injected function or an inject.useInjector/useCurrent functi
 				results = {}
 
 		singleton
+
+	makeFactory = (def)->
+		[fullName, name, params] = factoryName.exec(def.name)
+		fn = def.factory
+		[name, ->
+			unless fn
+				throw new Error("#{fullName} does not have a factory function so it cannot be injected into a function.");
+			if arguments.length && !params
+				throw new Error("#{fullName} is not a parameterized factory, it cannot take arguments. If you want to pass it arguments, the name must end with '()'.")
+			fn.apply(this,arguments)
+		]
 
 	substitute = (string,options) ->
 		string.replace /\{(.+?)\}/g, (param,name) ->
