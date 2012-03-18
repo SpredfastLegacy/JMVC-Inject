@@ -1,12 +1,33 @@
 
 [What is dependency injection?](https://github.com/cujojs/wire/wiki/IOC)
 
+# Functional Dependency Injection for JavaScriptMVC
+
+In a traditional dependency injection paradigm, the container manages objects that
+are connected to each other through the wiring spec. Injection is done by either setting
+properties or passing values to a constructor function (which typically then sets the
+properties on the object itself).
+
+While that is a paradigm that works well in object oriented languages, it's more natural
+in a functional language like JavaScript to inject functions instead.
+
+## Advantages of injecting functions
+
+ * No mutable state - no objects are modified, so it isn't possible for keys names to conflict
+   or for inject values to be changed.
+ * Late binding - dependencies do not have to be resolved until they are actually needed,
+   so you can defer the creation of expensive objects if desired.
+ * Rebinding - if the dependency to be injected changes, the next time the function is called,
+   it will receive the new value automatically.
+
 # Usage
 
 To create an injector, call `inject` with the injection definitions. The return value of
 `inject` is a function that is the injector.
 
 In the examples, we name the injector variable `injector`, but you can call it whatever you want. e.g., `require`, `when`, etc.
+
+*NOTE:* these docs are a work in progress, but for working examples of all functionality, you can refer to the qunit tests in the test directory.
 
 ## Injecting plain functions
 
@@ -19,6 +40,7 @@ In the examples, we name the injector variable `injector`, but you can call it w
 		}
 	});
 
+	// pass injector the list of dependencies and the function to inject
 	var myFunc = injector('foo',function(foo) {
 		alert(foo);
 	});
@@ -67,7 +89,7 @@ you can inject any function in that class by using the class name.
 Sometimes you need to write a function that will be used in multiple contexts.
 You can't use the injector directly in this case, as that would create a function
 that will be injected by just that injector. You need a way to create a function
-that can use whatever context it happens to be called in.
+that can use whatever injector context it happens to be called in.
 
 ### Using the current context
 
@@ -75,43 +97,67 @@ that can use whatever context it happens to be called in.
     	alert(foo);
     })
 
-    // ...
-
-
+    // ... TODO
 
 ### Setting/changing the context
 
+Calling an injected function sets the context while that funcion is executing,
+so any `inject.require` functions called (note: not defined) within an injected
+function will inherit the injector.
+
 	var injector = inject(...);
-    inject.useInjector(injector,function() {
+    injector(function() {
     	// functions like this will resolve foo from injector
     	inject.require('foo',function(foo) {
     		// ...
     	})();
     })();
 
+Note that while we use an injected function with no dependencies above,
+any injected function will serve.
+
 ### Capturing the current context
+
+Calling an injector function will set the context, but what about functions that need to be
+called outside of an injector function? If you can't use a specific injector, you
+can use `inject.useCurrent` to create a function that will reset the context to whatever
+context the function is declared in.
 
 	setTimeout(inject.useCurrent(function() {
 		// do things
 	}),500);
 
+	TODO more
 
-# Functional Dependency Injection for JavaScriptMVC
+### Controller Action Handlers
 
-In a traditional dependency injection paradigm, the container manages objects that
-are connected to each other through the wiring spec. Injection is do by either setting
-properties or passing values to a constructor function (which typically then sets the
-properties on the object itself).
+Controllers action handlers will not generally be called inside an injected function,
+so any handler using `inject.when` has to get the injector some other way.
+`inject.setupControllerActions` will setup the action handlers such that they
+use the injector context that was active when the controller was created:
 
-While that is a paradigm that works well in object oriented languages, it's more natural
-in a functional language like JavaScript to inject functions instead.
+	$.Controller('MyController',{},{
+		setup: inject.setupControllerActions
+		// OR
+		setup: function() {
+			// controllerSetup will call this._super
+			inject.setupControllerActions.apply(this,arguments);
+			// do other setup stuff
+		}
+	});
 
-## Advantages of injecting functions
+	var injector1 = inject(...);
+	var injector2 = inject(...);
 
- * No mutable state - no objects are modified, so it isn't possible for property names to conflict
-   or for inject values to be changed.
- * Late binding - dependencies do not have to be resolved until they are actually needed,
-   so you can defer the creation of expensive objects if desired.
- * Rebinding - if the dependency to be injected changes, the next time the function is called,
-   it will receive the new value automatically.
+	injector1('foo',function() {
+		// all action handlers will use injector1
+		$('#content1 .myContent').my();
+	});
+	injector2('foo',function() {
+		// all action handlers will use injector2
+		$('#content2 .somethingElse').my();
+	});
+
+Under the hood, all `setupControllerActions` is doing is wrapping each action with
+`inject.useCurrent`.
 

@@ -354,10 +354,10 @@
         return 456;
       }
     });
-    return inject.useInjector(injector, function() {
+    return injector(function() {
       return inject.require('foo', function(foo) {
         equals(foo, 123);
-        return inject.useInjector(injector2, function() {
+        return injector2(function() {
           return inject.require('foo', function(foo2) {
             return equals(foo2, 456);
           })();
@@ -375,7 +375,7 @@
       }
     });
     stop();
-    return inject.useInjector(injector, function() {
+    return injector(function() {
       return setTimeout(inject.useCurrent(inject.require('foo', function(foo) {
         equals(foo, 123);
         return start();
@@ -418,6 +418,58 @@
         return equals(realFoo, 123);
       })();
     })();
+  });
+
+  test("setupControllerActions", function() {
+    var expected, injector1, injector2;
+    expect(4);
+    injector1 = inject({
+      name: 'foo',
+      factory: function() {
+        return 123;
+      }
+    }, {
+      name: 'bar',
+      factory: function() {
+        return 456;
+      }
+    });
+    injector2 = inject({
+      name: 'foo',
+      factory: function() {
+        return 321;
+      }
+    }, {
+      name: 'bar',
+      factory: function() {
+        return 654;
+      }
+    });
+    $.Controller('TestController4', {}, {
+      /* this is the important part
+      */
+      setup: inject.setupControllerActions,
+      ".foo click": inject.require('foo', function(foo) {
+        return equals(foo, expected);
+      }),
+      ".bar click": inject.require('bar', function(bar) {
+        return equals(bar, expected);
+      })
+    });
+    injector1(function() {
+      return $('.testThing3').test4();
+    })();
+    injector2(function() {
+      return $('.testThing4').test4();
+    })();
+    expected = 123;
+    $('.testThing3 .foo').click();
+    expected = 456;
+    $('.testThing3 .bar').click();
+    expected = 321;
+    $('.testThing4 .foo').click();
+    expected = 654;
+    return $('.testThing4 .bar').click();
   });
 
 }).call(this);

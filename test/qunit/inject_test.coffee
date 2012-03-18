@@ -279,10 +279,10 @@ test "setting the context", ->
 		name: 'foo'
 		factory: -> 456
 
-	inject.useInjector(injector,->
+	injector( ->
 		inject.require('foo',(foo) ->
 			equals(foo,123)
-			inject.useInjector(injector2,->
+			injector2(->
 				inject.require('foo',(foo2) ->
 					equals(foo2,456);
 				)();
@@ -296,7 +296,7 @@ test "capturing the current context", ->
 		factory: -> 123
 
 	stop()
-	inject.useInjector(injector, ->
+	injector( ->
 		setTimeout(inject.useCurrent(inject.require('foo',(foo) ->
 			equals(foo,123)
 			start()
@@ -331,3 +331,47 @@ test "context inside a named function", ->
 			equals(realFoo,123)
 		)()
 	)()
+
+test "setupControllerActions", ->
+	expect(4)
+
+	injector1 = inject({
+		name: 'foo'
+		factory: -> 123
+	},{
+		name: 'bar',
+		factory: -> 456
+	})
+
+	injector2 = inject({
+		name: 'foo'
+		factory: -> 321
+	},{
+		name: 'bar',
+		factory: -> 654
+	})
+
+	$.Controller('TestController4',{},{
+		### this is the important part ###
+		setup: inject.setupControllerActions,
+		".foo click": inject.require('foo', (foo)->
+			equals(foo,expected)
+		),
+		".bar click": inject.require('bar', (bar)->
+			equals(bar,expected)
+		)
+	})
+
+	injector1(-> $('.testThing3').test4() )();
+	injector2(-> $('.testThing4').test4() )();
+
+	expected = 123;
+	$('.testThing3 .foo').click()
+	expected = 456;
+	$('.testThing3 .bar').click()
+
+	expected = 321;
+	$('.testThing4 .foo').click()
+	expected = 654;
+	$('.testThing4 .bar').click()
+

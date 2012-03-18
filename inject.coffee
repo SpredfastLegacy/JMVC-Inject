@@ -86,12 +86,11 @@ steal.plugins('jquery','jquery/class').then ($) ->
 		injectCurrent = ->
 			context = last(CONTEXT)
 			unless context
-				throw new Error("""There is no current injector.
-You need to call an injected function or an inject.useInjector/useCurrent function.""")
+				noContext()
 			injected = context.apply(this,args) # create an injected function
 			injected.apply(this,arguments) # and call it
 
-	inject.useInjector = useInjector = (injector,fn) ->
+	useInjector = (injector,fn) ->
 		return ->
 			try
 				CONTEXT.push(injector)
@@ -102,8 +101,12 @@ You need to call an injected function or an inject.useInjector/useCurrent functi
 	inject.useCurrent = (fn) ->
 		context = last(CONTEXT);
 		unless context
-			throw new Error("There is no current injector. You need to call an inject.useInjector function.");
-		inject.useInjector(context,fn)
+			noContext()
+		useInjector(context,fn)
+
+	noContext = ->
+		throw new Error("""There is no current injector.
+		You need to call this inside an injected function or an inject.useCurrent function.""")
 
 	# cache offers a simple mechanism for creating (and clearing) singletons
 	# without caching, the injected values are recreated/resolved each time
@@ -132,6 +135,12 @@ You need to call an injected function or an inject.useInjector/useCurrent functi
 				results = {}
 
 		singleton
+
+	inject.setupControllerActions = ->
+		for funcName, action of this.Class.actions
+			this[funcName] = inject.useCurrent(this[funcName])
+
+		@_super.apply(this,arguments)
 
 	makeFactory = (def)->
 		[fullName, name, params] = factoryName.exec(def.name)

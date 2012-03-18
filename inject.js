@@ -2,7 +2,7 @@
   var __slice = Array.prototype.slice;
 
   steal.plugins('jquery', 'jquery/class').then(function($) {
-    var CONTEXT, cache, error, exports, factoryName, find, getName, groupBy, inject, last, makeFactory, mapper, matchArgs, nameOf, substitute, useInjector, whenInjected;
+    var CONTEXT, cache, error, exports, factoryName, find, getName, groupBy, inject, last, makeFactory, mapper, matchArgs, nameOf, noContext, substitute, useInjector, whenInjected;
     exports = window;
     factoryName = /^([^(]+)(\((.*?)?\))?$/;
     error = window.console && console.error || function() {};
@@ -87,14 +87,12 @@
       return injectCurrent = function() {
         var context, injected;
         context = last(CONTEXT);
-        if (!context) {
-          throw new Error("There is no current injector.\nYou need to call an injected function or an inject.useInjector/useCurrent function.");
-        }
+        if (!context) noContext();
         injected = context.apply(this, args);
         return injected.apply(this, arguments);
       };
     };
-    inject.useInjector = useInjector = function(injector, fn) {
+    useInjector = function(injector, fn) {
       return function() {
         try {
           CONTEXT.push(injector);
@@ -107,10 +105,11 @@
     inject.useCurrent = function(fn) {
       var context;
       context = last(CONTEXT);
-      if (!context) {
-        throw new Error("There is no current injector. You need to call an inject.useInjector function.");
-      }
-      return inject.useInjector(context, fn);
+      if (!context) noContext();
+      return useInjector(context, fn);
+    };
+    noContext = function() {
+      throw new Error("There is no current injector.\nYou need to call this inside an injected function or an inject.useCurrent function.");
     };
     cache = inject.cache = function() {
       var results, singleton;
@@ -151,6 +150,43 @@
         }
       };
       return singleton;
+    };
+    /*
+    		Sets up a controller's action handlers (e.g., "button click": function()...)
+    		to use the curent injector at the time the controller is created.
+    
+    		Usage:
+    
+    			$.Controller('MyController',{},{
+    				setup: inject.controllerSetup
+    				// OR
+    				setup: function() {
+    					// controllerSetup will call this._super
+    					inject.controllerSetup.apply(this,arguments);
+    					// do other setup stuff
+    				}
+    			});
+    
+    			var injector1 = inject(...);
+    			var injector2 = inject(...);
+    
+    			injector1('foo',function() {
+    				// all action handlers will use injector1
+    				$('#content1 .myContent').my();
+    			});
+    			injector2('foo',function() {
+    				// all action handlers will use injector2
+    				$('#content2 .somethingElse').my();
+    			});
+    */
+    inject.setupControllerActions = function() {
+      var action, funcName, _ref;
+      _ref = this.Class.actions;
+      for (funcName in _ref) {
+        action = _ref[funcName];
+        this[funcName] = inject.useCurrent(this[funcName]);
+      }
+      return this._super.apply(this, arguments);
     };
     makeFactory = function(def) {
       var fn, fullName, name, params, _ref;
