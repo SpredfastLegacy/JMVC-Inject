@@ -5,9 +5,9 @@ module "inject",
 test "injecting functions", ->
 	expect(1)
 
-	injector = inject({
+	injector = Inject({
 		name: 'foo'
-		factory: inject.require 'bar', (bar) ->
+		factory: Inject.require 'bar', (bar) ->
 			bar.baz
 	},{
 		name: 'bar'
@@ -22,9 +22,9 @@ test "injecting functions", ->
 test "async dependencies", ->
 	expect(1)
 
-	injector = inject({
+	injector = Inject({
 		name: 'foo'
-		factory: inject.require 'bar', (bar) ->
+		factory: Inject.require 'bar', (bar) ->
 			def = $.Deferred()
 			setTimeout ->
 				def.resolve bar.baz
@@ -48,7 +48,7 @@ test "async dependencies", ->
 
 test "injecting methods", ->
 
-	injector = inject({
+	injector = Inject({
 		name: 'foo'
 		factory: ->
 			def = $.Deferred()
@@ -76,7 +76,7 @@ test "injecting methods", ->
 test "injecting controller methods scoped by selector", ->
 	expect(2);
 
-	injector = inject({
+	injector = Inject({
 		name: 'foo'
 		factory: ->
 			def = $.Deferred()
@@ -121,7 +121,7 @@ test "injecting controller methods scoped by selector", ->
 
 test "options substitution", ->
 
-	injector = inject({
+	injector = Inject({
 		name: 'foo'
 		factory: ->
 			def = $.Deferred()
@@ -147,7 +147,7 @@ test "options substitution", ->
 
 test "parameterized factories", ->
 
-	injector = inject({
+	injector = Inject({
 		name: 'foo()'
 		factory: (input) ->
 			def = $.Deferred()
@@ -178,7 +178,7 @@ test "parameterized factories", ->
 test "singleton: false", ->
 	requested = false
 	calls = 0
-	injector = inject
+	injector = Inject
 		name: 'foo'
 		singleton: false
 		factory: ->
@@ -189,10 +189,10 @@ test "singleton: false", ->
 	injector('foo',(i) -> equals(i,3) )();
 
 test "clearCache", ->
-	singleton = inject.cache()
+	singleton = Inject.cache()
 	requested = false
 	calls = 0
-	injector = inject
+	injector = Inject
 		name: 'foo'
 		factory: singleton('foo', (input) -> ++calls)
 
@@ -204,9 +204,9 @@ test "clearCache", ->
 test "eager: true", ->
 	expect(2)
 
-	singleton = inject.cache()
+	singleton = Inject.cache()
 	requested = false
-	injector = inject
+	injector = Inject
 		name: 'foo'
 		eager: true
 		factory: singleton('foo',(input) ->
@@ -218,8 +218,8 @@ test "eager: true", ->
 	injector('foo', (foo) -> equals(123,foo))();
 
 test "context sharing", ->
-	singleton = inject.cache()
-	shared = inject
+	singleton = Inject.cache()
+	shared = Inject
 		name: 'sharedFoo'
 		factory: singleton('sharedFoo', ->
 			qux:987
@@ -229,19 +229,19 @@ test "context sharing", ->
 	sharing context is as simple as using the shared context to inject
 	factories in another context
 	###
-	contextA = inject({
+	contextA = Inject({
 		name: 'bar'
 		factory: shared 'sharedFoo',(foo) ->
 			bar:foo
 	})
 
-	contextB = inject({
+	contextB = Inject({
 		name: 'foo'
 		### the shared context can be used as a factory in another context ###
 		factory: shared 'sharedFoo', (foo) -> foo
 	},{
 		name: 'baz'
-		factory: inject.require 'foo',(foo) ->
+		factory: Inject.require 'foo',(foo) ->
 			baz:foo
 	},{
 		name: 'foo2'
@@ -251,10 +251,10 @@ test "context sharing", ->
 		name: 'multipleContexts'
 		###
 			you can also mix other contexts with the current context
-			however, inject.require() must be on the outside if you want it to inject from the injector being defined
+			however, Inject.require() must be on the outside if you want it to inject from the injector being defined
 			note the resulting order of the arguments
 		###
-		factory: inject.require('foo2',shared('sharedFoo',(foo,foo2) ->
+		factory: Inject.require('foo2',shared('sharedFoo',(foo,foo2) ->
 			String(foo.qux) + String(foo2.qux)
 		))
 	})
@@ -272,18 +272,18 @@ test "context sharing", ->
 	)();
 
 test "setting the context", ->
-	injector = inject
+	injector = Inject
 		name: 'foo'
 		factory: -> 123
-	injector2 = inject
+	injector2 = Inject
 		name: 'foo'
 		factory: -> 456
 
 	injector( ->
-		inject.require('foo',(foo) ->
+		Inject.require('foo',(foo) ->
 			equals(foo,123)
 			injector2(->
-				inject.require('foo',(foo2) ->
+				Inject.require('foo',(foo2) ->
 					equals(foo2,456);
 				)();
 			)();
@@ -291,13 +291,13 @@ test "setting the context", ->
 	)();
 
 test "capturing the current context", ->
-	injector = inject
+	injector = Inject
 		name: 'foo'
 		factory: -> 123
 
 	stop()
 	injector( ->
-		setTimeout(inject.useCurrent(inject.require('foo',(foo) ->
+		setTimeout(Inject.useCurrent(Inject.require('foo',(foo) ->
 			equals(foo,123)
 			start()
 		)),200)
@@ -306,14 +306,14 @@ test "capturing the current context", ->
 test "error on no context", ->
 	expect(1)
 	try
-		inject.require('foo',(foo2) ->
+		Inject.require('foo',(foo2) ->
 			ok(false)
 		)()
 	catch expected
 		ok(true,'error')
 
 test "context inside a named function", ->
-	injector = inject({
+	injector = Inject({
 		name: 'foo'
 		factory: -> 123
 	},{
@@ -327,7 +327,7 @@ test "context inside a named function", ->
 
 	injector.named('bar')('foo',(foo) ->
 		equals(foo,456)
-		inject.require('foo',(realFoo) ->
+		Inject.require('foo',(realFoo) ->
 			equals(realFoo,123)
 		)()
 	)()
@@ -335,7 +335,7 @@ test "context inside a named function", ->
 test "setupControllerActions", ->
 	expect(4)
 
-	injector1 = inject({
+	injector1 = Inject({
 		name: 'foo'
 		factory: -> 123
 	},{
@@ -343,7 +343,7 @@ test "setupControllerActions", ->
 		factory: -> 456
 	})
 
-	injector2 = inject({
+	injector2 = Inject({
 		name: 'foo'
 		factory: -> 321
 	},{
@@ -353,11 +353,11 @@ test "setupControllerActions", ->
 
 	$.Controller('TestController4',{},{
 		### this is the important part ###
-		setup: inject.setupControllerActions,
-		".foo click": inject.require('foo', (foo)->
+		setup: Inject.setupControllerActions,
+		".foo click": Inject.require('foo', (foo)->
 			equals(foo,expected)
 		),
-		".bar click": inject.require('bar', (bar)->
+		".bar click": Inject.require('bar', (bar)->
 			equals(bar,expected)
 		)
 	})

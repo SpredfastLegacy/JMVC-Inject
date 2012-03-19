@@ -151,34 +151,6 @@
       };
       return singleton;
     };
-    /*
-    		Sets up a controller's action handlers (e.g., "button click": function()...)
-    		to use the curent injector at the time the controller is created.
-    
-    		Usage:
-    
-    			$.Controller('MyController',{},{
-    				setup: inject.controllerSetup
-    				// OR
-    				setup: function() {
-    					// controllerSetup will call this._super
-    					inject.controllerSetup.apply(this,arguments);
-    					// do other setup stuff
-    				}
-    			});
-    
-    			var injector1 = inject(...);
-    			var injector2 = inject(...);
-    
-    			injector1('foo',function() {
-    				// all action handlers will use injector1
-    				$('#content1 .myContent').my();
-    			});
-    			injector2('foo',function() {
-    				// all action handlers will use injector2
-    				$('#content2 .somethingElse').my();
-    			});
-    */
     inject.setupControllerActions = function() {
       var action, funcName, _ref;
       _ref = this.Class.actions;
@@ -279,7 +251,7 @@
         }
       }
     };
-    exports.inject = inject;
+    exports.Inject = inject;
     groupBy = function(array, fn) {
       var e, key, obj, prop, _i, _len;
       prop = fn;

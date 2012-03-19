@@ -9,9 +9,9 @@
   test("injecting functions", function() {
     var injector;
     expect(1);
-    injector = inject({
+    injector = Inject({
       name: 'foo',
-      factory: inject.require('bar', function(bar) {
+      factory: Inject.require('bar', function(bar) {
         return bar.baz;
       })
     }, {
@@ -30,9 +30,9 @@
   test("async dependencies", function() {
     var injector;
     expect(1);
-    injector = inject({
+    injector = Inject({
       name: 'foo',
-      factory: inject.require('bar', function(bar) {
+      factory: Inject.require('bar', function(bar) {
         var def;
         def = $.Deferred();
         setTimeout(function() {
@@ -62,7 +62,7 @@
 
   test("injecting methods", function() {
     var injector;
-    injector = inject({
+    injector = Inject({
       name: 'foo',
       factory: function() {
         var def;
@@ -94,7 +94,7 @@
   test("injecting controller methods scoped by selector", function() {
     var finish, i, injector;
     expect(2);
-    injector = inject({
+    injector = Inject({
       name: 'foo',
       factory: function() {
         var def;
@@ -147,7 +147,7 @@
 
   test("options substitution", function() {
     var injector;
-    injector = inject({
+    injector = Inject({
       name: 'foo',
       factory: function() {
         var def;
@@ -177,7 +177,7 @@
 
   test("parameterized factories", function() {
     var injector;
-    injector = inject({
+    injector = Inject({
       name: 'foo()',
       factory: function(input) {
         var def;
@@ -214,7 +214,7 @@
     var calls, injector, requested;
     requested = false;
     calls = 0;
-    injector = inject({
+    injector = Inject({
       name: 'foo',
       singleton: false,
       factory: function() {
@@ -234,10 +234,10 @@
 
   test("clearCache", function() {
     var calls, injector, requested, singleton;
-    singleton = inject.cache();
+    singleton = Inject.cache();
     requested = false;
     calls = 0;
-    injector = inject({
+    injector = Inject({
       name: 'foo',
       factory: singleton('foo', function(input) {
         return ++calls;
@@ -258,9 +258,9 @@
   test("eager: true", function() {
     var injector, requested, singleton;
     expect(2);
-    singleton = inject.cache();
+    singleton = Inject.cache();
     requested = false;
-    injector = inject({
+    injector = Inject({
       name: 'foo',
       eager: true,
       factory: singleton('foo', function(input) {
@@ -276,8 +276,8 @@
 
   test("context sharing", function() {
     var contextA, contextB, shared, singleton;
-    singleton = inject.cache();
-    shared = inject({
+    singleton = Inject.cache();
+    shared = Inject({
       name: 'sharedFoo',
       factory: singleton('sharedFoo', function() {
         return {
@@ -289,7 +289,7 @@
       	factories in another context
       */
     });
-    contextA = inject({
+    contextA = Inject({
       name: 'bar',
       factory: shared('sharedFoo', function(foo) {
         return {
@@ -297,7 +297,7 @@
         };
       })
     });
-    contextB = inject({
+    contextB = Inject({
       name: 'foo',
       /* the shared context can be used as a factory in another context
       */
@@ -306,7 +306,7 @@
       })
     }, {
       name: 'baz',
-      factory: inject.require('foo', function(foo) {
+      factory: Inject.require('foo', function(foo) {
         return {
           baz: foo
         };
@@ -322,10 +322,10 @@
       name: 'multipleContexts',
       /*
       			you can also mix other contexts with the current context
-      			however, inject.require() must be on the outside if you want it to inject from the injector being defined
+      			however, Inject.require() must be on the outside if you want it to inject from the injector being defined
       			note the resulting order of the arguments
       */
-      factory: inject.require('foo2', shared('sharedFoo', function(foo, foo2) {
+      factory: Inject.require('foo2', shared('sharedFoo', function(foo, foo2) {
         return String(foo.qux) + String(foo2.qux);
       }))
     });
@@ -342,23 +342,23 @@
 
   test("setting the context", function() {
     var injector, injector2;
-    injector = inject({
+    injector = Inject({
       name: 'foo',
       factory: function() {
         return 123;
       }
     });
-    injector2 = inject({
+    injector2 = Inject({
       name: 'foo',
       factory: function() {
         return 456;
       }
     });
     return injector(function() {
-      return inject.require('foo', function(foo) {
+      return Inject.require('foo', function(foo) {
         equals(foo, 123);
         return injector2(function() {
-          return inject.require('foo', function(foo2) {
+          return Inject.require('foo', function(foo2) {
             return equals(foo2, 456);
           })();
         })();
@@ -368,7 +368,7 @@
 
   test("capturing the current context", function() {
     var injector;
-    injector = inject({
+    injector = Inject({
       name: 'foo',
       factory: function() {
         return 123;
@@ -376,7 +376,7 @@
     });
     stop();
     return injector(function() {
-      return setTimeout(inject.useCurrent(inject.require('foo', function(foo) {
+      return setTimeout(Inject.useCurrent(Inject.require('foo', function(foo) {
         equals(foo, 123);
         return start();
       })), 200);
@@ -386,7 +386,7 @@
   test("error on no context", function() {
     expect(1);
     try {
-      return inject.require('foo', function(foo2) {
+      return Inject.require('foo', function(foo2) {
         return ok(false);
       })();
     } catch (expected) {
@@ -396,7 +396,7 @@
 
   test("context inside a named function", function() {
     var injector;
-    injector = inject({
+    injector = Inject({
       name: 'foo',
       factory: function() {
         return 123;
@@ -414,7 +414,7 @@
     });
     return injector.named('bar')('foo', function(foo) {
       equals(foo, 456);
-      return inject.require('foo', function(realFoo) {
+      return Inject.require('foo', function(realFoo) {
         return equals(realFoo, 123);
       })();
     })();
@@ -423,7 +423,7 @@
   test("setupControllerActions", function() {
     var expected, injector1, injector2;
     expect(4);
-    injector1 = inject({
+    injector1 = Inject({
       name: 'foo',
       factory: function() {
         return 123;
@@ -434,7 +434,7 @@
         return 456;
       }
     });
-    injector2 = inject({
+    injector2 = Inject({
       name: 'foo',
       factory: function() {
         return 321;
@@ -448,11 +448,11 @@
     $.Controller('TestController4', {}, {
       /* this is the important part
       */
-      setup: inject.setupControllerActions,
-      ".foo click": inject.require('foo', function(foo) {
+      setup: Inject.setupControllerActions,
+      ".foo click": Inject.require('foo', function(foo) {
         return equals(foo, expected);
       }),
-      ".bar click": inject.require('bar', function(bar) {
+      ".bar click": Inject.require('bar', function(bar) {
         return equals(bar, expected);
       })
     });

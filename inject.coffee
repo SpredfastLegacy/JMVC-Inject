@@ -204,7 +204,7 @@ steal.plugins('jquery','jquery/class').then ($) ->
 					delete result[i]
 				return result
 
-	exports.inject = inject
+	exports.Inject = inject
 
 	## Support Functions ##
 
