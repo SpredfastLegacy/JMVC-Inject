@@ -31,7 +31,7 @@ In the examples, we name the injector variable `injector`, but you can call it w
 
 ## Injecting plain functions
 
-	var injector = inject({
+	var injector = Inject({
 		name: 'foo',
 		factory: function() {
 			// your factory function can do anything. if you need to make ajax calls or use
@@ -53,7 +53,7 @@ Notice that the names passed to injector have to match the name of the factory.
 
 What if you don't know the names of the factory you want injected or the names vary?
 
-	var injector = inject({
+	var injector = Inject({
 		name: 'bar',
 		factory: function() {
 			// your factory function can do anything. if you need to make ajax calls or use
@@ -93,7 +93,7 @@ that can use whatever injector context it happens to be called in.
 
 ### Using the current context
 
-    alertFoo: inject.require('foo',function(foo) {
+    alertFoo: Inject.require('foo',function(foo) {
     	alert(foo);
     })
 
@@ -102,13 +102,13 @@ that can use whatever injector context it happens to be called in.
 ### Setting/changing the context
 
 Calling an injected function sets the context while that funcion is executing,
-so any `inject.require` functions called (note: not defined) within an injected
+so any `Inject.require` functions called (note: not defined) within an injected
 function will inherit the injector.
 
-	var injector = inject(...);
+	var injector = Inject(...);
     injector(function() {
     	// functions like this will resolve foo from injector
-    	inject.require('foo',function(foo) {
+    	Inject.require('foo',function(foo) {
     		// ...
     	})();
     })();
@@ -120,10 +120,10 @@ any injected function will serve.
 
 Calling an injector function will set the context, but what about functions that need to be
 called outside of an injector function? If you can't use a specific injector, you
-can use `inject.useCurrent` to create a function that will reset the context to whatever
+can use `Inject.useCurrent` to create a function that will reset the context to whatever
 context the function is declared in.
 
-	setTimeout(inject.useCurrent(function() {
+	setTimeout(Inject.useCurrent(function() {
 		// do things
 	}),500);
 
@@ -132,22 +132,22 @@ context the function is declared in.
 ### Controller Action Handlers
 
 Controllers action handlers will not generally be called inside an injected function,
-so any handler using `inject.when` has to get the injector some other way.
-`inject.setupControllerActions` will setup the action handlers such that they
+so any handler using `Inject.when` has to get the injector some other way.
+`Inject.setupControllerActions` will setup the action handlers such that they
 use the injector context that was active when the controller was created:
 
 	$.Controller('MyController',{},{
-		setup: inject.setupControllerActions
+		setup: Inject.setupControllerActions
 		// OR
 		setup: function() {
 			// controllerSetup will call this._super
-			inject.setupControllerActions.apply(this,arguments);
+			Inject.setupControllerActions.apply(this,arguments);
 			// do other setup stuff
 		}
 	});
 
-	var injector1 = inject(...);
-	var injector2 = inject(...);
+	var injector1 = Inject(...);
+	var injector2 = Inject(...);
 
 	injector1('foo',function() {
 		// all action handlers will use injector1
@@ -159,5 +159,5 @@ use the injector context that was active when the controller was created:
 	});
 
 Under the hood, all `setupControllerActions` is doing is wrapping each action with
-`inject.useCurrent`.
+`Inject.useCurrent`.
 
