@@ -81,14 +81,20 @@ steal.plugins('jquery','jquery/class').then ($) ->
 		injector
 
 	# support for injecting using the current context
-	# TODO named current context functions?
-	inject.require = (args...) ->
-		injectCurrent = ->
-			context = last(CONTEXT)
-			unless context
-				noContext()
-			injected = context.apply(this,args) # create an injected function
-			injected.apply(this,arguments) # and call it
+	injectUnbound = (name) ->
+		require = (args...) ->
+			injectCurrent = ->
+				context = last(CONTEXT)
+				unless context
+					noContext()
+				injected = context.named(name).apply(this,args) # create an injected function
+				injected.apply(this,arguments) # and call it
+
+	# require with no name
+	inject.require = injectUnbound()
+
+	inject.require.named = injectUnbound
+
 
 	useInjector = (injector,fn) ->
 		return ->
@@ -123,6 +129,11 @@ steal.plugins('jquery','jquery/class').then ($) ->
 					array.push(result);
 
 				result.value;
+
+		singleton.def = (name,fn,eager) ->
+			name: name
+			eager: eager
+			factory: this(name,fn)
 
 		singleton.clear = (keys...)->
 			if keys.length
@@ -188,7 +199,7 @@ steal.plugins('jquery','jquery/class').then ($) ->
 	getName = (target) ->
 		target?.options?.inject?.name || target?.Class?.fullName
 
-	mapper= (config) ->
+	mapper = (config) ->
 		mapProperty = (property) ->
 			config?.inject?[property] || property
 

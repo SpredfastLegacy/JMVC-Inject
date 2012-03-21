@@ -60,6 +60,32 @@
     })();
   });
 
+  test("require.named", function() {
+    var injector;
+    expect(1);
+    injector = Inject({
+      name: 'foo',
+      factory: function() {
+        return 456;
+      }
+    }, {
+      name: 'bar',
+      factory: function() {
+        return 123;
+      }
+    }, {
+      name: 'foobar',
+      inject: {
+        foo: 'bar'
+      }
+    });
+    return injector(function() {
+      return Inject.require.named('foobar')('foo', function(foo) {
+        return equals(123, foo);
+      })();
+    })();
+  });
+
   test("injecting methods", function() {
     var injector;
     injector = Inject({
@@ -216,7 +242,6 @@
     calls = 0;
     injector = Inject({
       name: 'foo',
-      singleton: false,
       factory: function() {
         return ++calls;
       }
@@ -237,12 +262,9 @@
     singleton = Inject.cache();
     requested = false;
     calls = 0;
-    injector = Inject({
-      name: 'foo',
-      factory: singleton('foo', function(input) {
-        return ++calls;
-      })
-    });
+    injector = Inject(singleton.def('foo', function(input) {
+      return ++calls;
+    }));
     injector('foo', function(i) {
       return equals(i, 1);
     })();
@@ -260,14 +282,10 @@
     expect(2);
     singleton = Inject.cache();
     requested = false;
-    injector = Inject({
-      name: 'foo',
-      eager: true,
-      factory: singleton('foo', function(input) {
-        ok(!requested, 'created before request');
-        return 123;
-      })
-    });
+    injector = Inject(singleton.def('foo', function(input) {
+      ok(!requested, 'created before request');
+      return 123;
+    }, true));
     requested = true;
     return injector('foo', function(foo) {
       return equals(123, foo);
@@ -277,18 +295,15 @@
   test("context sharing", function() {
     var contextA, contextB, shared, singleton;
     singleton = Inject.cache();
-    shared = Inject({
-      name: 'sharedFoo',
-      factory: singleton('sharedFoo', function() {
-        return {
-          qux: 987
-        };
-      })
-      /*
-      	sharing context is as simple as using the shared context to inject
-      	factories in another context
-      */
-    });
+    shared = Inject(singleton.def('sharedFoo', function() {
+      return {
+        qux: 987
+      };
+    }));
+    /*
+    		sharing context is as simple as using the shared context to inject
+    		factories in another context
+    */
     contextA = Inject({
       name: 'bar',
       factory: shared('sharedFoo', function(foo) {

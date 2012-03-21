@@ -46,6 +46,29 @@ test "async dependencies", ->
 		start()
 	)();
 
+
+test "require.named", ->
+	expect(1)
+
+	injector = Inject({
+		name: 'foo'
+		factory: -> 456
+	},{
+		name: 'bar'
+		factory: -> 123
+	},{
+		name: 'foobar',
+		inject: {
+			foo: 'bar'
+		}
+	})
+
+	injector( ->
+		Inject.require.named('foobar')('foo',(foo)->
+			equals(123,foo)
+		)()
+	)()
+
 test "injecting methods", ->
 
 	injector = Inject({
@@ -180,7 +203,6 @@ test "singleton: false", ->
 	calls = 0
 	injector = Inject
 		name: 'foo'
-		singleton: false
 		factory: ->
 			++calls
 
@@ -192,9 +214,11 @@ test "clearCache", ->
 	singleton = Inject.cache()
 	requested = false
 	calls = 0
-	injector = Inject
-		name: 'foo'
-		factory: singleton('foo', (input) -> ++calls)
+	injector = Inject(
+		singleton.def('foo', (input)->
+			++calls
+		)
+	)
 
 	injector('foo',(i) -> equals(i,1) )();
 	injector('foo',(i) -> equals(i,1) )();
@@ -206,28 +230,25 @@ test "eager: true", ->
 
 	singleton = Inject.cache()
 	requested = false
-	injector = Inject
-		name: 'foo'
-		eager: true
-		factory: singleton('foo',(input) ->
+	injector = Inject(
+		singleton.def('foo', (input)->
 			ok(!requested,'created before request')
 			123
-		)
+		,true)
+	)
 
 	requested = true;
-	injector('foo', (foo) -> equals(123,foo))();
+	injector('foo', (foo) ->
+		equals(123,foo)
+	)()
 
 test "context sharing", ->
 	singleton = Inject.cache()
-	shared = Inject
-		name: 'sharedFoo'
-		factory: singleton('sharedFoo', ->
-			qux:987
-		)
+	shared = Inject( singleton.def('sharedFoo', ()-> qux:987) )
 
- 	###
-	sharing context is as simple as using the shared context to inject
-	factories in another context
+	###
+		sharing context is as simple as using the shared context to inject
+		factories in another context
 	###
 	contextA = Inject({
 		name: 'bar'

@@ -2,7 +2,7 @@
   var __slice = Array.prototype.slice;
 
   steal.plugins('jquery', 'jquery/class').then(function($) {
-    var CONTEXT, cache, error, exports, factoryName, find, getName, groupBy, inject, last, makeFactory, mapper, matchArgs, nameOf, noContext, substitute, useInjector, whenInjected;
+    var CONTEXT, cache, error, exports, factoryName, find, getName, groupBy, inject, injectUnbound, last, makeFactory, mapper, matchArgs, nameOf, noContext, substitute, useInjector, whenInjected;
     exports = window;
     factoryName = /^([^(]+)(\((.*?)?\))?$/;
     error = window.console && console.error || function() {};
@@ -81,17 +81,22 @@
       }).call(this);
       return injector;
     };
-    inject.require = function() {
-      var args, injectCurrent;
-      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-      return injectCurrent = function() {
-        var context, injected;
-        context = last(CONTEXT);
-        if (!context) noContext();
-        injected = context.apply(this, args);
-        return injected.apply(this, arguments);
+    injectUnbound = function(name) {
+      var require;
+      return require = function() {
+        var args, injectCurrent;
+        args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+        return injectCurrent = function() {
+          var context, injected;
+          context = last(CONTEXT);
+          if (!context) noContext();
+          injected = context.named(name).apply(this, args);
+          return injected.apply(this, arguments);
+        };
       };
     };
+    inject.require = injectUnbound();
+    inject.require.named = injectUnbound;
     useInjector = function(injector, fn) {
       return function() {
         try {
@@ -129,6 +134,13 @@
             array.push(result);
           }
           return result.value;
+        };
+      };
+      singleton.def = function(name, fn, eager) {
+        return {
+          name: name,
+          eager: eager,
+          factory: this(name, fn)
         };
       };
       singleton.clear = function() {
