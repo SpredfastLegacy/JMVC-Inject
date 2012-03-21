@@ -24,13 +24,13 @@ JMVC Inject is inspired by AMD. The reasons you'd want to inject functions are v
 
 # Usage
 
-To create an injector, call `Inject` with the injection definitions. The return value of `Inject` is a function that is the injector.
+To create an injector, call `Inject` with the inject and dependency definitions. The return value of `Inject` (i.e., the injector) is a function.
 
-Injector definitions are simple objects with a `name` and a `factory` function. The factory function can return any value or it can return a [jQuery.Deferred](http://api.jquery.com/category/deferred-object/) which resolves to the value to inject.
+Injector definitions are simple objects with a `name` and a `factory` function. The factory function can return any value or it can return a [jQuery.Deferred](http://api.jquery.com/category/deferred-object/) which resolves to the value to inject. *Your factory function is called every time the dependency needs to be injected.*
 
 In the examples, we name the injector variable `injector`, but you can call it whatever you want. e.g., `require`, `when`, `myInjector`, etc.
 
-*NOTE:* these docs are a work in progress, but for working examples of all functionality, you can refer to the qunit tests in the test directory.
+**NOTE:** these docs are a work in progress, but for working examples of all functionality, you can refer to the qunit tests in the test directory.
 
 ## Injecting plain functions
 
@@ -50,20 +50,22 @@ In the examples, we name the injector variable `injector`, but you can call it w
 
 	alertFoo(); // alerts 6
 
-Notice that the names passed to injector have to match the name of the factory.
+Notice that the names passed to injector have to match the name of the dependency.
 
 Also, your injected function will return a `Deferred`, which will resolve to the result.
 
 ## Named Functions
 
-What if you don't know the names of the factory you want injected or the names vary?
+What if you don't know the name of the dependency you want injected or the name varies? You can name your function and use a defintion with an `inject` object to remap its dependencies:
 
 	var injector = Inject({
+		// dependency definition
 		name: 'bar',
 		factory: function() {
 			return 2 * 3;
 		}
 	},{
+		// inject definition
 		name: 'alertFoo',
 		inject: {
 			foo: 'bar'
@@ -76,10 +78,12 @@ What if you don't know the names of the factory you want injected or the names v
 
 	alertFoo(); // alert 6
 
+The usefulness of named functions will become more apparent when we talk about unbound functions.
+
 ## Injecting Class methods
 
 If you're injecting a method on a class defined with $.Class (jQueryMX),
-you can inject any function in that class by using the class name.
+you can inject any method in that class by using the class name.
 
 	var injector = Inject({
 		name: 'foo',
@@ -110,14 +114,16 @@ you can inject any function in that class by using the class name.
 
 	new TestClass().foo(); // alerts '123'
 
+Nothing prevents you from using named functions as methods in your class. The function name will take precedence over the class.
+
 ## Injecting Controller methods
 
-Controllers can be injected just like any other class, but also offer two additional features:
+Controller methods can be injected just like any other class method, but also offer two additional features:
 
  1. Your injector defintion can include a selector, to inject controllers differently depending upon their place in the DOM.
  2. The controller options can be used to define dependencies and as arguments to parameterized factories (see below).
 
-### Option Susbtitution
+### Option Substitution
 
 	var injector = Inject({
 	  name: 'foo',
@@ -171,9 +177,9 @@ Controllers can be injected just like any other class, but also offer two additi
 
 	$.Controller('TestController2', {
 	}, {
-	  init: injector('thing', function(foo) {
-		alert(foo);
-	  })
+		init: injector('thing', function(foo) {
+			alert(foo);
+		})
 	});
 
 	$('.selector123').test2(); //alerts 123
@@ -207,11 +213,13 @@ Factories used by controllers can take options as parameters, to allow for very 
 
 Parameter names correspond to controller options but should not be contained in `{}`.
 
-## Injector Context
+## Injector Context / Unbound Functions
 
-Sometimes you need to write a function that will be used in multiple contexts. You can't use the injector directly in this case, as that would create a function that will be injected by just that injector. You need a way to create a function that can use whatever injector context it happens to be called in.
+Sometimes you need to write a function that will be used in multiple contexts. You can't use the injector directly in this case, as that would create a function that will be injected by just that injector. You need a way to create a function that can use whatever injector context it happens to be called in. This is called an unbound function.
 
-To create an unbound injected function, we use `Inject.require`. Calling an injected function sets the context while that funcion is executing, so any `Inject.require` functions called within an injected function will inherit the injector.
+To create an unbound function, we use `Inject.require`. Calling a bound function sets the context while that funcion is executing, so any unbound functions called within the stack of a bound function will be injected with the bound function's injector.
+
+For `Inject.require` where the function is *called* determines which injector it uses, which is why we say it is unbound.
 
 	var alertFoo = Inject.require('foo',function(foo) {
 		alert(foo);
@@ -240,11 +248,11 @@ To create an unbound injected function, we use `Inject.require`. Calling an inje
 
 	alertFoo();	// ERROR! No injector is available!
 
-For `Inject.require` where the function is *called* determines which injector it uses.
+There is also `Inject.require.named`, which lets you create named unbound functions just like `injector.named`.
 
 ### Capturing the current context
 
-Calling an injector function will set the context, but what about functions that need to be called outside of an injector function?
+Calling a bound function will set the context, but what about functions that need to be called outside of the stack of a bound function?
 
 	var alertFoo = Inject.require('foo',function(foo) {
 		alert(foo);
@@ -256,7 +264,7 @@ Calling an injector function will set the context, but what about functions that
 		},500);
 	})();
 
-You can use `Inject.useCurrent` to define a function that will reset the context to whatever context the function is declared in.
+You can use `Inject.useCurrent` to define a function that will rebind the context to whatever context the function is declared in.
 
 	injector(function() {
 		setTimeout(Inject.useCurrent(function() {
@@ -266,7 +274,7 @@ You can use `Inject.useCurrent` to define a function that will reset the context
 
 ### Controller Action Handlers
 
-Controllers action handlers will not generally be called inside an injected function, so they have the same problem as an async function call. Any handler using `Inject.when` has to get the injector some other way. `Inject.setupControllerActions` will setup the action handlers such that they use the injector context that was active when the controller was created:
+Controllers action handlers will not generally be called inside a bound function, so they have the same problem as an async function call. Any unbound handler function has to get the injector some other way. `Inject.setupControllerActions` will setup the action handlers such that they are bound to the injector context that was active when the controller instance was created:
 
 	$.Controller('MyController',{},{
 		setup: Inject.setupControllerActions
@@ -293,12 +301,55 @@ Controllers action handlers will not generally be called inside an injected func
 Under the hood, all `setupControllerActions` is doing is wrapping each action with
 `Inject.useCurrent`.
 
-# Helpers
+# Misc
 
 ## Caching
 
-	TODO
+Your factory function is called every time a dependency needs to be injected. If you are injecting a resource that needs to be loaded, that wont be very efficient. You'll want to cache the dependency after it is first loaded, to avoid making lots of expensive calls.
+
+`Inject.cache` creates a helper function that will do that for you:
+
+	var number = 1;
+	var singleton = Inject.cache();
+	var injector = Inject({
+		name: 'foo',
+		factory: singleton('foo',function() {
+			return number++;
+		})
+	});
+	alertFoo(); // alerts 1
+	alertFoo(); // also alerts 1
+
+Without the cache, the 2nd call of `alertFoo()` would have alerted 2.
+
+The first argument to the cache function is the unique key for the cached value. You can use the key to clear the cached value at a later time so that the factory will be called again:
+
+	singleton.clear('foo');
+	alertFoo(); // alerts 2
+	alertFoo(); // also alerts 2
+
+Since your cache key will often also be the name of the dependency, the cache function has a helper that will produce the whole definition for you:
+
+	var injector = Inject(
+		singleton.def('foo',function() {
+			return number++;
+		})
+	);
 
 ## Eager loading
 
-	TODO
+If your definition includs `eager: true`, your factory will be called immediately after the injector is created. This is useful for preloading dependencies.
+
+	var number = 1;
+	var singleton = Inject.cache();
+	var injector = Inject({
+		name: 'foo',
+		eager: true,
+		factory: singleton(function() {
+			return number++;
+		})
+	});
+	// number === 2
+	alertFoo(); // alerts 1, since 1 was cached
+
+Note that you can use the `def` shortcut for eager dependencies, just pass `true` as the 3rd arugment.
