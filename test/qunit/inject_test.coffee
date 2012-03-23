@@ -311,6 +311,27 @@ test "setting the context", ->
 		)();
 	)();
 
+test "retain the context", ->
+	injector = Inject
+		name: 'foo'
+		factory: ->
+			def = $.Deferred()
+			setTimeout(->
+				def.resolve 123
+			,25)
+			def
+
+	stop(100)
+	injector( ->
+		Inject.require('foo',(foo) ->
+			equals(foo,123)
+			Inject.require('foo',(foo2) ->
+				equals(foo2,123);
+				start()
+			)()
+		)()
+	)()
+
 test "capturing the current context", ->
 	injector = Inject
 		name: 'foo'

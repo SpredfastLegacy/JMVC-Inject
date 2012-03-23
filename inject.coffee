@@ -172,6 +172,7 @@ steal.plugins('jquery','jquery/class').then ($) ->
 		# injectorFor creates requires(), which is what the user sees as the injector
 		injectorFor = (name) ->
 			requires = (dependencies...,fn)->
+				fn = useInjector injector, fn # make sure the function retains the right context
 				# when takes a list of the dependencies and the function to inject
 				# and returns a function that will resolve the dependencies and pipe them into the function
 				useInjector injector, (args...) -> # set the context when the injected function is called

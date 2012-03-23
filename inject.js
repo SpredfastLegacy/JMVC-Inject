@@ -200,6 +200,7 @@
         return requires = function() {
           var dependencies, fn, _i;
           dependencies = 2 <= arguments.length ? __slice.call(arguments, 0, _i = arguments.length - 1) : (_i = 0, []), fn = arguments[_i++];
+          fn = useInjector(injector, fn);
           return useInjector(injector, function() {
             var args, d, deferreds, resolve, target;
             args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];

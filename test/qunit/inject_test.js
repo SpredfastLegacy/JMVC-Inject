@@ -381,6 +381,31 @@
     })();
   });
 
+  test("retain the context", function() {
+    var injector;
+    injector = Inject({
+      name: 'foo',
+      factory: function() {
+        var def;
+        def = $.Deferred();
+        setTimeout(function() {
+          return def.resolve(123);
+        }, 25);
+        return def;
+      }
+    });
+    stop(100);
+    return injector(function() {
+      return Inject.require('foo', function(foo) {
+        equals(foo, 123);
+        return Inject.require('foo', function(foo2) {
+          equals(foo2, 123);
+          return start();
+        })();
+      })();
+    })();
+  });
+
   test("capturing the current context", function() {
     var injector;
     injector = Inject({
