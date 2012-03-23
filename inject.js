@@ -194,7 +194,8 @@
       });
     };
     whenInjected = function(resolver) {
-      var injector, injectorFor;
+      var destroyed, injector, injectorFor;
+      destroyed = false;
       injectorFor = function(name) {
         var requires;
         return requires = function() {
@@ -204,6 +205,7 @@
           return useInjector(injector, function() {
             var args, d, deferreds, resolve, target;
             args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+            if (destroyed) return;
             target = this;
             resolve = resolver(name || nameOf(target));
             try {
@@ -221,13 +223,16 @@
               throw e;
             }
             return $.when.apply($, deferreds.concat(args)).pipe(function() {
-              return fn.apply(target, arguments);
+              if (!destroyed) return fn.apply(target, arguments);
             });
           });
         };
       };
       injector = injectorFor();
       injector.named = injectorFor;
+      injector.destroy = function() {
+        return destroyed = true;
+      };
       return injector;
     };
     nameOf = function(target) {

@@ -332,6 +332,28 @@ test "retain the context", ->
 		)()
 	)()
 
+test "destroy the context", ->
+	injector = Inject
+		name: 'foo'
+		factory: ->
+			def = $.Deferred()
+			setTimeout(->
+				def.resolve 123
+			,25)
+			def
+
+	stop(200)
+	injector( ->
+		Inject.require('foo',(foo) ->
+			ok(false,'should never have run!')
+		)()
+	)()
+
+	injector.destroy()
+
+	setTimeout start, 100
+
+
 test "capturing the current context", ->
 	injector = Inject
 		name: 'foo'

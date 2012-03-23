@@ -169,6 +169,7 @@ steal.plugins('jquery','jquery/class').then ($) ->
 			$.String.getObject(name,[options])
 
 	whenInjected = (resolver) ->
+		destroyed = false
 		# injectorFor creates requires(), which is what the user sees as the injector
 		injectorFor = (name) ->
 			requires = (dependencies...,fn)->
@@ -176,6 +177,7 @@ steal.plugins('jquery','jquery/class').then ($) ->
 				# when takes a list of the dependencies and the function to inject
 				# and returns a function that will resolve the dependencies and pipe them into the function
 				useInjector injector, (args...) -> # set the context when the injected function is called
+					return if destroyed
 					target = this
 					resolve = resolver(name || nameOf(target))
 					try
@@ -184,11 +186,13 @@ steal.plugins('jquery','jquery/class').then ($) ->
 						error('Error resolving for target:',target)
 						throw e
 					$.when.apply($,deferreds.concat(args)).pipe ->
-						fn.apply(target,arguments)
+						fn.apply(target,arguments) unless destroyed
 
 		# XXX to support named functions, we have to expose injectorFor, which allows the name to be curried
 		injector = injectorFor() # no name resolves by the target object
 		injector.named = injectorFor
+		injector.destroy = ->
+			destroyed = true
 		injector
 
 	nameOf = (target) ->

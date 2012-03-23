@@ -353,3 +353,14 @@ If your definition includs `eager: true`, your factory will be called immediatel
 	alertFoo(); // alerts 1, since 1 was cached
 
 Note that you can use the `def` shortcut for eager dependencies, just pass `true` as the 3rd arugment.
+
+## Destroying the injector
+
+The injector has a destroy method:
+
+    injector.destroy();
+
+Once it is called, any function that was bound to that injector will become a noop, and functions that have been called and are waiting for dependencies to resolve will also never execute.
+
+This is useful when you know you are done with an injector and want to cleanup any functions that may have been bound to it.
+

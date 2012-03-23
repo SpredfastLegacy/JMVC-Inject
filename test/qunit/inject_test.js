@@ -406,6 +406,29 @@
     })();
   });
 
+  test("destroy the context", function() {
+    var injector;
+    injector = Inject({
+      name: 'foo',
+      factory: function() {
+        var def;
+        def = $.Deferred();
+        setTimeout(function() {
+          return def.resolve(123);
+        }, 25);
+        return def;
+      }
+    });
+    stop(200);
+    injector(function() {
+      return Inject.require('foo', function(foo) {
+        return ok(false, 'should never have run!');
+      })();
+    })();
+    injector.destroy();
+    return setTimeout(start, 100);
+  });
+
   test("capturing the current context", function() {
     var injector;
     injector = Inject({
