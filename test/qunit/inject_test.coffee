@@ -439,3 +439,32 @@ test "setupControllerActions", ->
 	expected = 654;
 	$('.testThing4 .bar').click()
 
+test "andReturn", ->
+	expect 9
+
+	injector = Inject({
+		name: 'foo',
+		factory: -> 123
+	})
+
+	equals 456, injector('foo', (foo) ->
+		equals(123,foo)
+	).andReturn(->456)()
+
+	equals false, injector('foo', (foo) ->
+		equals(123,foo)
+	).andReturn(false)()
+
+	injector( ->
+		equals 456, Inject.require('foo', (foo) ->
+			equals(123,foo)
+		).andReturn(456)()
+	)()
+
+
+	equals false, injector('foo', (foo,bar) ->
+		equals(456,bar)
+	).andReturn((result,bar)->
+		equals(456,bar)
+		false
+	)(456)

@@ -2,7 +2,7 @@
   var __slice = Array.prototype.slice;
 
   steal.plugins('jquery', 'jquery/class').then(function($) {
-    var CONTEXT, cache, error, exports, factoryName, find, getName, groupBy, inject, injectUnbound, last, makeFactory, mapper, matchArgs, nameOf, noContext, substitute, useInjector, whenInjected;
+    var CONTEXT, andReturn, cache, error, exports, factoryName, find, getName, groupBy, inject, injectUnbound, last, makeFactory, mapper, matchArgs, nameOf, noContext, substitute, useInjector, whenInjected;
     exports = window;
     factoryName = /^([^(]+)(\((.*?)?\))?$/;
     error = window.console && console.error || function() {};
@@ -86,13 +86,15 @@
       return require = function() {
         var args, injectCurrent;
         args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-        return injectCurrent = function() {
+        injectCurrent = function() {
           var context, injected;
           context = last(CONTEXT);
           if (!context) noContext();
           injected = context.named(name).apply(this, args);
           return injected.apply(this, arguments);
         };
+        injectCurrent.andReturn = andReturn;
+        return injectCurrent;
       };
     };
     inject.require = injectUnbound();
@@ -199,10 +201,10 @@
       injectorFor = function(name) {
         var requires;
         return requires = function() {
-          var dependencies, fn, _i;
+          var dependencies, fn, injected, _i;
           dependencies = 2 <= arguments.length ? __slice.call(arguments, 0, _i = arguments.length - 1) : (_i = 0, []), fn = arguments[_i++];
           fn = useInjector(injector, fn);
-          return useInjector(injector, function() {
+          injected = useInjector(injector, function() {
             var args, d, deferreds, resolve, target;
             args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
             if (destroyed) return;
@@ -226,6 +228,8 @@
               if (!destroyed) return fn.apply(target, arguments);
             });
           });
+          injected.andReturn = andReturn;
+          return injected;
         };
       };
       injector = injectorFor();
@@ -234,6 +238,23 @@
         return destroyed = true;
       };
       return injector;
+    };
+    andReturn = function(afterAdvice) {
+      var fn;
+      fn = this;
+      if (!afterAdvice.apply) {
+        afterAdvice = (function(value) {
+          return function() {
+            return value;
+          };
+        })(afterAdvice);
+      }
+      return function() {
+        var args, def;
+        args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+        def = fn.apply(this, args);
+        return afterAdvice.apply(this, [def].concat(args));
+      };
     };
     nameOf = function(target) {
       if (target.element && target.Class) {

@@ -535,4 +535,34 @@
     return $('.testThing4 .bar').click();
   });
 
+  test("andReturn", function() {
+    var injector;
+    expect(9);
+    injector = Inject({
+      name: 'foo',
+      factory: function() {
+        return 123;
+      }
+    });
+    equals(456, injector('foo', function(foo) {
+      return equals(123, foo);
+    }).andReturn(function() {
+      return 456;
+    })());
+    equals(false, injector('foo', function(foo) {
+      return equals(123, foo);
+    }).andReturn(false)());
+    injector(function() {
+      return equals(456, Inject.require('foo', function(foo) {
+        return equals(123, foo);
+      }).andReturn(456)());
+    })();
+    return equals(false, injector('foo', function(foo, bar) {
+      return equals(456, bar);
+    }).andReturn(function(result, bar) {
+      equals(456, bar);
+      return false;
+    })(456));
+  });
+
 }).call(this);

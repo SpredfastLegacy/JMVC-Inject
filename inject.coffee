@@ -89,6 +89,8 @@ steal.plugins('jquery','jquery/class').then ($) ->
 					noContext()
 				injected = context.named(name).apply(this,args) # create an injected function
 				injected.apply(this,arguments) # and call it
+			injectCurrent.andReturn = andReturn
+			injectCurrent
 
 	# require with no name
 	inject.require = injectUnbound()
@@ -176,7 +178,7 @@ steal.plugins('jquery','jquery/class').then ($) ->
 				fn = useInjector injector, fn # make sure the function retains the right context
 				# when takes a list of the dependencies and the function to inject
 				# and returns a function that will resolve the dependencies and pipe them into the function
-				useInjector injector, (args...) -> # set the context when the injected function is called
+				injected = useInjector injector, (args...) -> # set the context when the injected function is called
 					return if destroyed
 					target = this
 					resolve = resolver(name || nameOf(target))
@@ -187,6 +189,8 @@ steal.plugins('jquery','jquery/class').then ($) ->
 						throw e
 					$.when.apply($,deferreds.concat(args)).pipe ->
 						fn.apply(target,arguments) unless destroyed
+				injected.andReturn = andReturn
+				injected
 
 		# XXX to support named functions, we have to expose injectorFor, which allows the name to be curried
 		injector = injectorFor() # no name resolves by the target object
@@ -194,6 +198,14 @@ steal.plugins('jquery','jquery/class').then ($) ->
 		injector.destroy = ->
 			destroyed = true
 		injector
+
+	andReturn = (afterAdvice) ->
+		fn = this
+		unless afterAdvice.apply
+			afterAdvice = ((value)-> -> value )(afterAdvice)
+		(args...) ->
+			def = fn.apply(this,args)
+			afterAdvice.apply(this,[def].concat(args))
 
 	nameOf = (target) ->
 		if target.element && target.Class
