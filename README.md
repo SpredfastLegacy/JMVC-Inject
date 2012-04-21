@@ -1,11 +1,13 @@
 
 [What is dependency injection?](https://github.com/cujojs/wire/wiki/IOC)
 
-# Functional Dependency Injection for JavaScriptMVC
+# Functional Dependency Injection for JavaScriptMVC (DoneJS/CanJS)
 
 In a traditional dependency injection paradigm, the container manages objects that are connected to each other through the wiring spec. Injection is done by either setting properties or passing values to a constructor function (which typically then sets the properties on the object itself).
 
 While that is a paradigm that works well in object oriented languages, it's more natural in a functional language like JavaScript to inject functions instead.
+
+**NOTE:** inject-core.js can be used independently of JavaScript MVC. You obviously wont be able to use the Class and Controller based functionality, but named functions and everything else should work.
 
 ## Advantages of injecting functions instead of objects
 
@@ -30,7 +32,7 @@ Injector definitions are simple objects with a `name` and a `factory` function. 
 
 In the examples, we name the injector variable `injector`, but you can call it whatever you want. e.g., `require`, `when`, `myInjector`, etc. The injector is also referred to as the context.
 
-**NOTE:** these docs are a work in progress, but for working examples of all functionality, you can refer to the qunit tests in the test directory.
+**NOTE:** these docs fairly complete, but you can always find working examples in the qunit tests in the test directory.
 
 ## Injecting plain functions
 
