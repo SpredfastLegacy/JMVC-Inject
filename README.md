@@ -32,7 +32,7 @@ Injector definitions are simple objects with a `name` and a `factory` function. 
 
 In the examples, we name the injector variable `injector`, but you can call it whatever you want. e.g., `require`, `when`, `myInjector`, etc. The injector is also referred to as the context.
 
-**NOTE:** these docs fairly complete, but you can always find working examples in the qunit tests in the test directory.
+**NOTE:** these docs are fairly complete, but you can always find working examples in the qunit tests in the test directory.
 
 ## Injecting plain functions
 
