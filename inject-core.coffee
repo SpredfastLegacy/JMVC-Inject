@@ -146,11 +146,11 @@ useInjector = (injector,fn) ->
 		finally
 			CONTEXT.pop()
 
-inject.useCurrent = (fn) ->
+inject.useCurrent = (fn,ignoreNoContext) ->
 	context = last(CONTEXT);
-	unless context
+	unless context or ignoreNoContext
 		noContext()
-	useInjector(context,fn)
+	if context then useInjector(context,fn) else fn
 
 noContext = ->
 	throw new Error("""There is no current injector.

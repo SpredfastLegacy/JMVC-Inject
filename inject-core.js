@@ -169,11 +169,15 @@
     };
   };
 
-  inject.useCurrent = function(fn) {
+  inject.useCurrent = function(fn, ignoreNoContext) {
     var context;
     context = last(CONTEXT);
-    if (!context) noContext();
-    return useInjector(context, fn);
+    if (!(context || ignoreNoContext)) noContext();
+    if (context) {
+      return useInjector(context, fn);
+    } else {
+      return fn;
+    }
   };
 
   noContext = function() {

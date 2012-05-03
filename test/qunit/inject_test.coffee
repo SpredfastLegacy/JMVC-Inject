@@ -355,6 +355,7 @@ test "destroy the context", ->
 
 
 test "capturing the current context", ->
+	expect 2
 	injector = Inject
 		name: 'foo'
 		factory: -> 123
@@ -366,6 +367,10 @@ test "capturing the current context", ->
 			start()
 		)),200)
 	)()
+
+	Inject.useCurrent(->
+		ok(true,'Can ignore no context')
+	,true).call this
 
 test "error on no context", ->
 	expect(1)

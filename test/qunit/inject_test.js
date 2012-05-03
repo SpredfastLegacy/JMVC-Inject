@@ -431,6 +431,7 @@
 
   test("capturing the current context", function() {
     var injector;
+    expect(2);
     injector = Inject({
       name: 'foo',
       factory: function() {
@@ -438,12 +439,15 @@
       }
     });
     stop();
-    return injector(function() {
+    injector(function() {
       return setTimeout(Inject.useCurrent(Inject.require('foo', function(foo) {
         equals(foo, 123);
         return start();
       })), 200);
     })();
+    return Inject.useCurrent(function() {
+      return ok(true, 'Can ignore no context');
+    }, true).call(this);
   });
 
   test("error on no context", function() {
