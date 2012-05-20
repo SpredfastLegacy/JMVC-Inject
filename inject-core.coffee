@@ -138,39 +138,6 @@ noContext = ->
 	throw new Error("""There is no current injector.
 	You need to call this inside an injected function or an inject.useCurrent function.""")
 
-# cache offers a simple mechanism for creating (and clearing) singletons
-# without caching, the injected values are recreated/resolved each time
-# TODO plugin
-cache = inject.cache = ->
-	results = {}
-
-	singleton = (name,fn) ->
-		cachedFactory = (args...) ->
-			array = results[name] || (results[name] = [])
-			result = matchArgs(array,args || [])
-
-			unless result
-				result = value: fn.apply(this,args), args: args
-				array.push(result);
-
-			result.value;
-
-	singleton.def = (name,fn,eager) ->
-		name: name
-		eager: eager
-		factory: this(name,fn)
-
-	singleton.clear = (keys...)->
-		if keys.length
-			for key in keys
-				if key.args
-					matchArgs(results[key.name],key.args,true)
-				else
-					delete results[key]
-		else
-			results = {}
-
-	singleton
 
 whenInjected = (resolver,definition) ->
 	destroyed = false
@@ -222,18 +189,6 @@ getClass = (target) ->
 mapper = (config) ->
 	mapProperty = (property) ->
 		config?.inject?[property] || property
-
-matchArgs = (results,args,del) ->
-	return unless results
-
-	for result, i in results
-		miss = find result.args || [], (index,arg) ->
-			args[index] isnt arg
-
-		unless miss
-			if del
-				delete result[i]
-			return result
 
 exports.Inject = inject
 
@@ -297,7 +252,3 @@ groupBy = (array,fn) ->
 last = (array) ->
 	array?[array?.length - 1]
 
-find = (array,fn,context) ->
-	fn ?= (it) -> it
-	for value, index in array
-		return value if fn.call(context,value,index)
