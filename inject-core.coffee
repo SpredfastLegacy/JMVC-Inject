@@ -2,22 +2,10 @@
 	Requirements:
 		jQuery or DoneJS/CanJS ($.when and $.extend)
 
-	Optional:
-		JavaScriptMVC/DoneJS/CanJS
-			$.String.getObject - required for parameterized factories
 ###
 window = this
 
 exports = window
-
-factoryName = ///
-	^			# match the whole string
-	([^(]+)		# everything up the ( or the end is the real name
-	(\(			# 2nd capture is the ()
-		(.*?)?	# 3rd capture is the arguments, unparsed
-	\))?
-	$
-///
 
 error = if window.console and console.error
 	(args...) -> console.error.apply(console,args)
@@ -35,16 +23,11 @@ bind = (obj,name) ->
 D = if window.can
 	when: bind(can,'when')
 	extend: bind(can,'extend')
-	getObject: bind(can,'getObject') #optional, but we know it's there
 else
 	unless window.jQuery or window.$?.when and window.$?.extend
-		throw new Error("Either JavaScriptMVC, DoneJS, CanJS or jQuery is required.")
-	when: bind(jQuery,'when')
-	extend: bind(jQuery,'extend')
-	getObject: if jQuery.String?.getObject
-		bind(jQuery.String,'getObject')
-	else -> throw new Error("Cannot use controllers without JMVC")
-
+		throw new Error("Either JavaScriptMVC, DoneJS, CanJS or jQuery/Zepto is required.")
+	when: bind(window.jQuery or window.$,'when')
+	extend: bind(window.jQuery or window.$,'extend')
 
 
 
@@ -52,6 +35,7 @@ else
 
 # the global stack of injectors
 CONTEXT = []
+PLUGINS = []
 
 inject = (defs...)->
 	factories = {}
@@ -59,46 +43,43 @@ inject = (defs...)->
 	defs = groupBy(defs,'name')
 	eager = []
 
-	resolver = (name) ->
-		def = {}
-
-		# the factories are already built, so we just need to get the inject definitions
-		# to create the mapping
-		if(name && name.controller)
-			controller = name.controller
-			name = getName(controller)
-
-		# find matching definitions and collapse them into def
-		###
-			Important note: jQuery.is is required to use a controller selector.
-		###
-		D.extend(true,def,d) for d in defs[name] || [] when \
-			!controller || !d.controller || controller.element.is(d.controller)
+	resolver = (obj) ->
+		def = definition(obj)
+		controller = def.controllerInstance
 
 		# def just tells us how to map the dependency names to global names
 		mapping = mapper(def)
 
 		resolve = (name) ->
-			# TODO enable for non-controllers? would be accessing globals...
-			sub = (name) ->
-				controller && substitute(name,controller.options) || name
+			realName = mapping(name)
+			factory = factories[realName]
 
-			get = (path) ->
-				unless controller
-					throw new Error("parameterized factories can only be used on controllers. Cannot resolve '#{path}' for '#{name}' AKA '#{realName}'")
-				D.getObject(path,[controller.options])
+			# let the plugins override the factory
+			for plugin in PLUGINS when plugin.resolveFactory
+				factory = plugin.resolveFactory(obj,realName,def) || factory
 
-
-			parts = factoryName.exec(mapping(sub(name)))
-			realName = parts[1]
-			args = (get(path) for path in parts[3]?.split(',') ? [] when path)
-
-			unless factories[realName]
+			unless factory
 				throw new Error("Cannot resolve '#{realName}' AKA '#{name}'")
 
-			factories[realName].apply(this,args)
+			factory.call(this)
 
-	injector = whenInjected(resolver)
+	definition = (target) ->
+		context = last(CONTEXT)
+		name = context.name || getName(target)
+		def = {}
+
+		definitions = (defs[name] || []).slice(0)
+
+		# let the plugins add additional definitions
+		for plugin in PLUGINS when plugin.processDefinition
+			definitions.push(plugin.processDefinition(target,definitions) || {})
+
+		# collapse all the definitions
+		D.extend(true,def,d) for d in definitions
+
+		def
+
+	injector = whenInjected(resolver,definition)
 
 	# pre-create factories
 	for name, configs of defs
@@ -106,7 +87,8 @@ inject = (defs...)->
 
 		D.extend(true,def,d) for d in configs
 
-		[name,factory] = makeFactory(def)
+		name = def.name
+		factory = def.factory
 
 		eager.push(factory) if def.eager
 
@@ -114,7 +96,7 @@ inject = (defs...)->
 
 	# run the eager factories (presumably they cache themselves)
 	# eager factories are built in to make it easier to resolve dependencies of the eager factory
-	useInjector(injector, ->
+	useInjector({injector:injector,definition:definition}, ->
 		factory() for factory in eager
 	).call(this)
 
@@ -127,7 +109,7 @@ injectUnbound = (name) ->
 			context = last(CONTEXT)
 			unless context
 				noContext()
-			injected = context.named(name).apply(this,args) # create an injected function
+			injected = context.injector.named(name).apply(this,args) # create an injected function
 			injected.apply(this,arguments) # and call it
 		injectCurrent.andReturn = andReturn
 		injectCurrent
@@ -147,7 +129,7 @@ useInjector = (injector,fn) ->
 			CONTEXT.pop()
 
 inject.useCurrent = (fn,ignoreNoContext) ->
-	context = last(CONTEXT);
+	context = last(CONTEXT)
 	unless context or ignoreNoContext
 		noContext()
 	if context then useInjector(context,fn) else fn
@@ -158,6 +140,7 @@ noContext = ->
 
 # cache offers a simple mechanism for creating (and clearing) singletons
 # without caching, the injected values are recreated/resolved each time
+# TODO plugin
 cache = inject.cache = ->
 	results = {}
 
@@ -189,39 +172,22 @@ cache = inject.cache = ->
 
 	singleton
 
-inject.setupControllerActions = ->
-	for funcName, action of getClass(this).actions
-		this[funcName] = inject.useCurrent(this[funcName])
-
-	@_super.apply(this,arguments)
-
-makeFactory = (def)->
-	[fullName, name, params] = factoryName.exec(def.name)
-	fn = def.factory
-	[name, ->
-		unless fn
-			throw new Error("#{fullName} does not have a factory function so it cannot be injected into a function.");
-		if arguments.length && !params
-			throw new Error("#{fullName} is not a parameterized factory, it cannot take arguments. If you want to pass it arguments, the name must end with '()'.")
-		fn.apply(this,arguments)
-	]
-
-substitute = (string,options) ->
-	string.replace /\{(.+?)\}/g, (param,name) ->
-		D.getObject(name,[options])
-
-whenInjected = (resolver) ->
+whenInjected = (resolver,definition) ->
 	destroyed = false
 	# injectorFor creates requires(), which is what the user sees as the injector
 	injectorFor = (name) ->
 		requires = (dependencies...,fn)->
-			fn = useInjector injector, fn # make sure the function retains the right context
+			injectContext =
+				injector: injector
+				name: name
+				definition: definition
+			fn = useInjector injectContext, fn # make sure the function retains the right context
 			# when takes a list of the dependencies and the function to inject
 			# and returns a function that will resolve the dependencies and pipe them into the function
-			injected = useInjector injector, (args...) -> # set the context when the injected function is called
+			injected = useInjector injectContext, (args...) -> # set the context when the injected function is called
 				return if destroyed
 				target = this
-				resolve = resolver(name || nameOf(target))
+				resolve = resolver(target)
 				try
 					deferreds = (resolve(d) for d in dependencies)
 				catch e
@@ -247,14 +213,8 @@ andReturn = (afterAdvice) ->
 		def = fn.apply(this,args)
 		afterAdvice.apply(this,[def].concat(args))
 
-nameOf = (target) ->
-	if target.element && getClass(target)
-		controller: target
-	else
-		getName(target)
-
 getName = (target) ->
-	target?.options?.inject?.name || getClass(target)?.fullName
+	getClass(target)?.fullName
 
 getClass = (target) ->
 	target?.Class || target?.constructor
@@ -276,6 +236,47 @@ matchArgs = (results,args,del) ->
 			return result
 
 exports.Inject = inject
+
+
+## Plugins ##
+
+###
+	Plugins can define 3 methods:
+
+	* init(pluginSupport) - passed the plugin support object, which has some helper functions.
+	* processDefinition(target,definitions) -
+		can return an additional definition object that will override the other definitions.
+		DO NOT call pluginSupport.definition inside this method.
+	* resolveFactory(target,name,targetDefinition) -
+		can return a factory function that will override the defined factory.
+###
+
+pluginSupport =
+	###
+		Helper for getting a copy of the definition used to inject the given object in the current context.
+
+		@param {Object|String} target the thing to be injected, or its name. Some plugins may
+		return a different definition for an instance than they would for the name.
+		@return {Object} a copy of the injection definition for target in the current injector.
+	###
+	definition: (target) ->
+		context = last(CONTEXT)
+
+		unless context
+			noContext()
+
+		# fake an object it for names
+		if typeof target == 'string'
+			target =
+				Class:
+					fullName: target
+
+		context.definition(target)
+
+inject.plugin = (plugin)->
+	PLUGINS.push(plugin)
+	if plugin.init
+		plugin.init(pluginSupport)
 
 ## Support Functions ##
 

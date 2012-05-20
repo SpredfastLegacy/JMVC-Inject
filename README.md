@@ -24,6 +24,11 @@ JMVC Inject is inspired by AMD. The reasons you'd want to inject functions are v
   * Identifiers can be remapped easily, so you can swap out implementations. This is great for testing and makes code more reusable.
   * Encapsulation. For functions, encapsulation means the function code can focus on producing a result instead of worrying about getting all its dependencies in order. This also makes writing [pure functions](http://en.wikipedia.org/wiki/Pure_function) a lot easier.
 
+## New Features
+
+ * Injecting Controller options - Controllers can have their options set to injected values. Controller instantiation will be deferred.
+ * Injecting Attributes - Like controllers, Model/Observe style Classes can have their attributes set with values from the injector (but creation will be deferred).
+
 # Usage
 
 To create an injector, call `Inject` with the inject and dependency definitions. The return value of `Inject` (i.e., the injector) is a function.
@@ -140,6 +145,8 @@ You can use `Inject.useCurrent` to define a function that will rebind the contex
 			alertFoo();	// OK!
 		}),500);
 	})();
+
+Note that `useCurrent` will throw an exception if there is no current context. If you want to capture the context if there is one, but otherwise proceed as normal, then pass `true` as the second argument.
 
 ### Controller Action Handlers
 
@@ -326,7 +333,7 @@ Using a selector, we didn't have to pass an option to the 2nd controller to inje
 Factories used by controllers can take options as parameters, to allow for very flexible injection:
 
 	var injector = Inject({
-		name: 'foo()', // note that the name must end with ()
+		name: 'foo',
 		// a = optionA and b = optionB below
 		factory: function(a,b) {
 			return a + b;
@@ -347,6 +354,86 @@ Factories used by controllers can take options as parameters, to allow for very 
 
 Parameter names correspond to controller options but should not be contained in `{}`.
 
+### Injecting controller options
+
+The injector can set values on the options object passed to your controller by using the `Inject.setupController` method as your static setup method. This enables templated event binding on injected values (JMVC 3.2+).
+
+Note that the controller instance itself is not modified, just the initial options hash that is passed in and the injector will *not* override options that are already defined, because they have been passed in to the controller at the point of creation:
+
+    $.Controller('Foo',{
+        // note this is the Static setup method
+        setup: Inject.setupController // also fixes controller actions
+    },{
+        init: function() {
+        	// alerts "Hello Bob!"
+            alert(this.options.foo + this.options.bar);
+        },
+        "{model} foo": function(model,event) {
+        	// foo changed! do something!
+        }
+    });
+
+    Inject({
+        name: 'bar',
+        factory: function() {
+            return 'Hello ';
+        }
+    },{
+        name: 'baz',
+        factory: function() {
+            return 'World!';
+        }
+    },{
+    	name: 'someModel',
+    	factory: // ...
+    },{
+        name: 'Foo',
+        options: {
+            foo: 'bar',
+            bar: 'baz',
+            model: 'someModel'
+        }
+    })(function() {
+        $('#foo').foo({bar: 'Bob!'});
+    }).call(this);
+
+### Injecting Attributes
+
+Similarly, classes that take a hash of attribute values as the first argument to their contructor can have injected values set.
+
+Note that the class instance itself is not modified, just what is passed to the constuctor and the injector will *not* override values that are already defined:
+
+    $.Observe('Foo',{
+        // note this is the Static setup method
+        setup: Inject.setup
+    },{
+        init: function() {
+        	// baz = "Hello Bob!"
+            this.baz = this.foo + this.bar;
+        }
+    });
+
+    Inject({
+        name: 'bar',
+        factory: function() {
+            return 'Hello ';
+        }
+    },{
+        name: 'baz',
+        factory: function() {
+            return 'World!';
+        }
+    },{
+        name: 'Foo',
+        attrs: {
+            foo: 'bar',
+            bar: 'baz'
+        }
+    })(function() {
+        new Foo({bar:'Bob!'}).done(function(foo) {
+            alert(foo.baz);
+        });
+    }).call(this);
 
 # Misc
 

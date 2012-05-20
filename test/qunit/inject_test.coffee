@@ -171,7 +171,7 @@ test "options substitution", ->
 test "parameterized factories", ->
 
 	injector = Inject({
-		name: 'foo()'
+		name: 'foo'
 		factory: (input) ->
 			def = $.Deferred()
 			setTimeout ->
@@ -473,3 +473,54 @@ test "andReturn", ->
 		equals(456,bar)
 		false
 	)(456)
+
+
+test 'injecting options', ->
+	expect 1
+	$.Controller('Foo',{
+    	setup: Inject.setupController
+	},{
+		init: ->
+			equals(this.options.foo + this.options.bar,'Hello Bob!')
+	})
+
+	Inject({
+		name: 'bar',
+		factory: -> 'Hello '
+	},{
+		name: 'baz',
+		factory: -> 'World!'
+	},{
+		name: 'Foo',
+		options:
+			foo: 'bar',
+			bar: 'baz'
+	})(->
+		$('.testThing').foo({bar:'Bob!'})
+	).call(this)
+
+
+test 'injecting attrs', ->
+	expect 1
+	$.Model('Foo',{
+		setup: Inject.setup
+	},{
+		init: -> @baz = @foo + @bar
+	})
+
+	Inject({
+		name: 'bar',
+		factory: -> 'Hello '
+	},{
+		name: 'baz',
+		factory: -> 'World!'
+	},{
+		name: 'Foo',
+		attrs: {
+			foo: 'bar',
+			bar: 'baz'
+		}
+	})(->
+		new Foo({bar:'Bob!'}).done (foo) ->
+			equals(foo.baz,'Hello Bob!')
+	).call(this);
