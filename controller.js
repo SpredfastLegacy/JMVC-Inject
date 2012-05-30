@@ -7,13 +7,13 @@
   factoryName = /^([^(]+)(\((.*?)?\))?$/;
 
   getOptions = function(Class, support, args) {
-    var d, def, el, selector, _ref;
+    var d, def, el, _i, _len, _ref;
     el = args[0];
     def = support.definition(Class.fullName);
-    _ref = def.controllerDefs;
-    for (selector in _ref) {
-      d = _ref[selector];
-      if (!selector || el.is(selector)) {
+    _ref = (def != null ? def.controllerDefs : void 0) || [];
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      d = _ref[_i];
+      if (!d.controller || el.is(d.controller)) {
         def = d;
       }
     }
@@ -39,11 +39,10 @@
     }
     for (_j = 0, _len1 = grouped.length; _j < _len1; _j++) {
       d = grouped[_j];
-      if (d.controller && target.element.is(d.controller)) {
+      if (!d.controller || target.element.is(d.controller)) {
         def = d;
       }
     }
-    def || (def = byKey['']);
     def = $.extend(true, {}, def);
     if (def) {
       def.controllerDefs = grouped;
@@ -87,7 +86,7 @@
     });
   };
 
-  (steal.plugins ? steal('inject-core.js', 'attrs.js').plugins('jquery/lang') : steal('./inject-core.js', './attrs.js', 'jquery/lang')).then(function() {
+  (steal.plugins ? steal('inject-core.js', 'attrs.js').plugins('jquery/lang') : steal('./inject-core.js', './attrs.js', 'jquery/lang/string')).then(function() {
     var $, exports;
     $ = this.$ || this.can;
     exports = Inject;

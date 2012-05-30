@@ -15,7 +15,7 @@ getOptions = (Class,support,args) ->
 	el = args[0]
 	def = support.definition(Class.fullName)
 	# XXX not a typo, we want the last def that matches selector
-	def = d for selector, d of def.controllerDefs when not selector or el.is(selector)
+	def = d for d in def?.controllerDefs || [] when not d.controller or el.is(d.controller)
 	def?.options
 
 processDef = (target,defs) ->
@@ -36,9 +36,8 @@ processDef = (target,defs) ->
 
 		$.extend(true,merged,d)
 
-	# find the def that matches the controller's element, or use the default
-	def = d for d in grouped when d.controller and target.element.is(d.controller)
-	def ||= byKey['']
+	# find the last def that matches the controller's element, or is the default
+	def = d for d in grouped when not d.controller or target.element.is(d.controller)
 
 	# XXX! return a copy so we don't create a loop in the object graph
 	def = $.extend(true,{},def);
@@ -69,7 +68,7 @@ substitute = (string,options) ->
 (if steal.plugins
 	steal('inject-core.js','attrs.js').plugins('jquery/lang')
 else
-	steal('./inject-core.js','./attrs.js','jquery/lang')).then ->
+	steal('./inject-core.js','./attrs.js','jquery/lang/string')).then ->
 
 	$ = this.$ || this.can
 
