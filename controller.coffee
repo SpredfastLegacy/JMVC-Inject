@@ -85,11 +85,8 @@ else
 
 	exports.setupController = ->
 		Inject.setup.arg(1,getOptions).apply(this,arguments)
-		# TODO add setupControllerActions somehow
-
-	exports.setupControllerActions = ->
-		for funcName, action of this.Class.actions
-			this[funcName] = Inject.useCurrent(this[funcName])
-
-		@_super.apply(this,arguments)
-
+		setup = this.prototype.setup
+		this.prototype.setup = ->
+			for funcName, action of this.Class.actions
+				this[funcName] = Inject.useCurrent(this[funcName])
+			setup.apply(this,arguments)

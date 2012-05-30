@@ -420,9 +420,10 @@ test "setupControllerActions", ->
 		factory: -> 654
 	})
 
-	$.Controller('TestController4',{},{
+	$.Controller('TestController4',{
+		setup: Inject.setupController
+	},{
 		### this is the important part ###
-		setup: Inject.setupControllerActions,
 		".foo click": Inject.require('foo', (foo)->
 			equals(foo,expected)
 		),

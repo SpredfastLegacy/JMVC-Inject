@@ -150,16 +150,18 @@ Note that `useCurrent` will throw an exception if there is no current context. I
 
 ### Controller Action Handlers
 
-Controllers action handlers will not generally be called inside a bound function, so they have the same problem as an async function call. Any unbound handler function has to get the injector some other way. `Inject.setupControllerActions` will setup the action handlers such that they are bound to the injector context that was active when the controller instance was created:
+Controllers action handlers will not generally be called inside a bound function, so they have the same problem as an async function call. Any unbound handler function has to get the injector some other way. `Inject.setupController` will setup the action handlers such that they are bound to the injector context that was active when the controller instance was created:
 
-	$.Controller('MyController',{},{
-		setup: Inject.setupControllerActions
+	$.Controller('MyController',{
+		// notice this is the static part
+		setup: Inject.setupController
 		// OR
 		setup: function() {
-			// controllerSetup will call this._super, so your setup should not
-			Inject.setupControllerActions.apply(this,arguments);
+			// setup will call this._super, so your setup should not
+			Inject.setupController.apply(this,arguments);
 			// do other setup stuff
 		}
+	},{
 	});
 
 	var injector1 = Inject(...);
@@ -174,7 +176,7 @@ Controllers action handlers will not generally be called inside a bound function
 		$('#content2 .somethingElse').my();
 	});
 
-Under the hood, all `setupControllerActions` is doing is wrapping each action with
+Under the hood, all `setupController` is doing is wrapping each action with
 `Inject.useCurrent`.
 
 

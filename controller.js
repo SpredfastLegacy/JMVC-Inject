@@ -101,17 +101,19 @@
         return support = s;
       }
     });
-    exports.setupController = function() {
-      return Inject.setup.arg(1, getOptions).apply(this, arguments);
-    };
-    return exports.setupControllerActions = function() {
-      var action, funcName, _ref;
-      _ref = this.Class.actions;
-      for (funcName in _ref) {
-        action = _ref[funcName];
-        this[funcName] = Inject.useCurrent(this[funcName]);
-      }
-      return this._super.apply(this, arguments);
+    return exports.setupController = function() {
+      var setup;
+      Inject.setup.arg(1, getOptions).apply(this, arguments);
+      setup = this.prototype.setup;
+      return this.prototype.setup = function() {
+        var action, funcName, _ref;
+        _ref = this.Class.actions;
+        for (funcName in _ref) {
+          action = _ref[funcName];
+          this[funcName] = Inject.useCurrent(this[funcName]);
+        }
+        return setup.apply(this, arguments);
+      };
     };
   });
 

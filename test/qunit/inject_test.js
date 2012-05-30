@@ -516,11 +516,12 @@
         return 654;
       }
     });
-    $.Controller('TestController4', {}, {
+    $.Controller('TestController4', {
+      setup: Inject.setupController
+    }, {
       /* this is the important part
       */
 
-      setup: Inject.setupControllerActions,
       ".foo click": Inject.require('foo', function(foo) {
         return equals(foo, expected);
       }),
