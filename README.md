@@ -356,6 +356,9 @@ Factories used by controllers can take options as parameters, to allow for very 
 
 Parameter names correspond to controller options but should not be contained in `{}`.
 
+
+## Injecting Constructors
+
 ### Injecting controller options
 
 The injector can set values on the options object passed to your controller by using the `Inject.setupController` method as your static setup method. This enables templated event binding on injected values (JMVC 3.2+).
@@ -500,3 +503,80 @@ Once it is called, any function that was bound to that injector will become a no
 
 This is useful when you know you are done with an injector and want to cleanup any functions that may have been bound to it.
 
+# Plugins
+
+The injector has some simple but powerful support for plugins. First lets define our vocabulary:
+
+ * __target__ - this is the `this` of the injected function. e.g.,
+
+        foo.bar(); // if bar is injected, its target is foo
+
+ * __definition__ - definitions are the configuration objects you passed in when creating the injector.  Plugins may produce additional definitions. All definitions are merged to create the final definition, with later definitions taking precedence. Plugin definitions are always added after the initial definitions.
+
+You create a plugin like this:
+
+	// plugin hooks run in the order the plugins are defined
+	// all hooks are optional
+    Inject.plugin({
+    	/**
+    	 * @param pluginSupport provides `definition(name/target)`
+    	 * which returns the definition that would be used to resolve or inject
+    	 * the name or the target. This is handy for getting the factory for a
+    	 * dependency.
+    	 * When looking up the definition of a target, keep in mind that some plugins
+    	 * alter the definition based on the target's properties, so the final definition
+    	 * may be different if you pass a name instead of the real target.
+    	 */
+        init: function(pluginSupport) {
+            this.support = pluginSupport;
+    		// other setup goes here
+        },
+        /**
+         * Gives the plugin a chance to provide additional definition for a target.
+         *
+         * This is called each time an injected funtion is called, so make it fast!
+         *
+         * pluginSupport.definition calls this method, so unless you are very clever,
+         * you will cause a stack overflow if you try to get other definitions
+         * from this method.
+         *
+         * @param target the object(this) of the function being injected.
+         * @param definitions an array of the definitions supplied to the injector
+         * that match the target. Includes definitions created by plugins that ran
+         * before this one.
+         * @return an additional definition object that will override the previous
+         * definitions. Or nothing if you have no overrides.
+         */
+        processDefinition: function(target,definitions) {
+        	$.each(definitions,function() {
+        		// inspect the definition object
+        	});
+        	// inspect the target object being injected
+        	return { definition: 'overrides' };
+        },
+        /**
+         * Gives the plugin a chance to provide its own factory function to resolve a
+         * dependency. The last plugin to return a factory "wins."
+         *
+         * This is called every time a dependency needs to be resolved (multiple times
+         * per function call), so make it fast!
+         *
+         * @param target the object (this) the function being injected is called on.
+         * @param nameToResolve the name being resolved. This is the name after any inject
+         * mapping is applied.
+         * @param targetDefintion - the definition of the target.
+         * @return the new factory function, or nothing to keep the original.
+         */
+        resolveFactory: function(target,nameToResolve,targetDefinition) {
+        	// get the current definition if you need it (good for wrapping/transforming results)
+        	var definition = this.support.definition(nameToResolve);
+
+        	// inspect targetDefintion and target to determine if you want a new factory
+
+        	return newFactoryFunction;
+        }
+    });
+
+The injector core only processes `name`, `factory`, `inject` and `eager`. Any additional keys can be used as hooks by plugins. All the controller and Class enhancements are implemented via plugins.
+
+As all plugins apply to all injectors, be sure to give your plugin hooks nice uniquely namespaced names.
