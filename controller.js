@@ -102,6 +102,9 @@
         return support = s;
       }
     });
+    exports.setupControllerActions = function() {
+      throw new Error('setupControllerActions has changed to the static setupController function');
+    };
     return exports.setupController = function() {
       var args, setup;
       args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];

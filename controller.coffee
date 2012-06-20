@@ -83,6 +83,9 @@ else
 		init: (s) ->
 			support = s
 
+	exports.setupControllerActions = ->
+		throw new Error('setupControllerActions has changed to the static setupController function')
+
 	exports.setupController = (args...)->
 		Inject.setup.arg(1,getOptions).apply(this,arguments)
 		setup = this.prototype.setup
