@@ -83,10 +83,11 @@ else
 		init: (s) ->
 			support = s
 
-	exports.setupController = ->
+	exports.setupController = (args...)->
 		Inject.setup.arg(1,getOptions).apply(this,arguments)
 		setup = this.prototype.setup
 		this.prototype.setup = ->
 			for funcName, action of this.Class.actions
 				this[funcName] = Inject.useCurrent(this[funcName])
 			setup.apply(this,arguments)
+		args
