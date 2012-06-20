@@ -362,10 +362,10 @@ test "capturing the current context", ->
 
 	stop()
 	injector( ->
-		setTimeout(Inject.useCurrent(Inject.require('foo',(foo) ->
+		setTimeout(Inject.useCurrent('foo',(foo) ->
 			equals(foo,123)
 			start()
-		)),200)
+		),200)
 	)()
 
 	Inject.useCurrent(->

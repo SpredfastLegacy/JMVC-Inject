@@ -165,8 +165,17 @@
     };
   };
 
-  inject.useCurrent = function(fn, ignoreNoContext) {
-    var context;
+  inject.useCurrent = function() {
+    var args, context, fn, ignoreNoContext, _i;
+    args = 3 <= arguments.length ? __slice.call(arguments, 0, _i = arguments.length - 2) : (_i = 0, []), fn = arguments[_i++], ignoreNoContext = arguments[_i++];
+    if (ignoreNoContext != null ? ignoreNoContext.apply : void 0) {
+      args = args.concat(fn);
+      fn = ignoreNoContext;
+      ignoreNoContext = false;
+    }
+    if (args.length) {
+      fn = Inject.require.apply(Inject, args.concat([fn]));
+    }
     context = last(CONTEXT);
     if (!(context || ignoreNoContext)) {
       noContext();

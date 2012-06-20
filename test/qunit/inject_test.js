@@ -444,10 +444,10 @@
     });
     stop();
     injector(function() {
-      return setTimeout(Inject.useCurrent(Inject.require('foo', function(foo) {
+      return setTimeout(Inject.useCurrent('foo', function(foo) {
         equals(foo, 123);
         return start();
-      })), 200);
+      }), 200);
     })();
     return Inject.useCurrent(function() {
       return ok(true, 'Can ignore no context');

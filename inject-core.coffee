@@ -128,7 +128,13 @@ useInjector = (injector,fn) ->
 		finally
 			CONTEXT.pop()
 
-inject.useCurrent = (fn,ignoreNoContext) ->
+inject.useCurrent = (args...,fn,ignoreNoContext) ->
+	if ignoreNoContext?.apply
+		args = args.concat(fn)
+		fn = ignoreNoContext
+		ignoreNoContext = false
+	if args.length
+		fn = Inject.require.apply(Inject,args.concat([fn]))
 	context = last(CONTEXT)
 	unless context or ignoreNoContext
 		noContext()
