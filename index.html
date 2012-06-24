@@ -1,0 +1,706 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Inject by Spredfast</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/main.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+
+      <header>
+        <h1>Inject</h1>
+        <p>A functional dependency injector for JavaScript MVC.</p>
+      </header>
+
+      <div id="banner">
+        <span id="logo"></span>
+
+        <a href="https://github.com/Spredfast/JMVC-Inject" class="button fork"><strong>View On GitHub</strong></a>
+        <div class="downloads">
+          <span>Downloads:</span>
+          <ul>
+            <li><a href="https://github.com/Spredfast/JMVC-Inject/zipball/master" class="button">ZIP</a></li>
+            <li><a href="https://github.com/Spredfast/JMVC-Inject/tarball/master" class="button">TAR</a></li>
+          </ul>
+        </div>
+      </div><!-- end banner -->
+
+    <div class="wrapper">
+      <nav>
+        <ul></ul>
+      </nav>
+      <section>
+        <p><a href="https://github.com/cujojs/wire/wiki/IOC">What is dependency injection?</a></p>
+
+<h1>Functional Dependency Injection for JavaScriptMVC (DoneJS/CanJS)</h1>
+
+<p>In a traditional dependency injection paradigm, the container manages objects that are connected to each other through the wiring spec. Injection is done by either setting properties or passing values to a constructor function (which typically then sets the properties on the object itself).</p>
+
+<p>While that is a paradigm that works well in object oriented languages, it's more natural in a functional language like JavaScript to inject functions instead.</p>
+
+<p><strong>NOTE:</strong> inject-core.js can be used independently of JavaScript MVC. You obviously wont be able to use the Class and Controller based functionality, but named functions and everything else should work.</p>
+
+<h2>Advantages of injecting functions instead of objects</h2>
+
+<ul>
+<li>No mutable state - no objects are modified, so it isn't possible for keys names to conflict or for injected values to be changed.</li>
+<li>Late binding - dependencies do not have to be resolved until they are actually needed, so you can defer the creation of expensive objects if desired.</li>
+<li>Rebinding - if the dependency to be injected changes, the next time the function is called, it will receive the new value automatically.</li>
+</ul><h2>Why an injector?</h2>
+
+<p>JMVC Inject is inspired by AMD. The reasons you'd want to inject functions are very similar to the <a href="http://requirejs.org/docs/whyamd.html">reasons to use an AMD loader</a>:</p>
+
+<ul>
+<li>Dependencies are clearly defined.</li>
+<li>Avoid global variables.</li>
+<li>Identifiers can be remapped easily, so you can swap out implementations. This is great for testing and makes code more reusable.</li>
+<li>Encapsulation. For functions, encapsulation means the function code can focus on producing a result instead of worrying about getting all its dependencies in order. This also makes writing <a href="http://en.wikipedia.org/wiki/Pure_function">pure functions</a> a lot easier.</li>
+</ul><h2>New Features</h2>
+
+<ul>
+<li>Injecting Controller options - Controllers can have their options set to injected values. Controller instantiation will be deferred.</li>
+<li>Injecting Attributes - Like controllers, Model/Observe style Classes can have their attributes set with values from the injector (but creation will be deferred).</li>
+</ul><h1>Usage</h1>
+
+<p>To create an injector, call <code>Inject</code> with the inject and dependency definitions. The return value of <code>Inject</code> (i.e., the injector) is a function.</p>
+
+<p>Injector definitions are simple objects with a <code>name</code> and a <code>factory</code> function. The factory function can return any value or it can return a <a href="http://api.jquery.com/category/deferred-object/">jQuery.Deferred</a> which resolves to the value to inject. <em>Your factory function is called every time the dependency needs to be injected.</em></p>
+
+<p>In the examples, we name the injector variable <code>injector</code>, but you can call it whatever you want. e.g., <code>require</code>, <code>when</code>, <code>myInjector</code>, etc. The injector is also referred to as the context.</p>
+
+<p><strong>NOTE:</strong> these docs are fairly complete, but you can always find working examples in the qunit tests in the test directory.</p>
+
+<h2>Injecting plain functions</h2>
+
+<pre><code>var injector = Inject({
+    name: 'foo',
+    factory: function() {
+        // your factory function can do anything. if you need to make ajax calls or use
+        // a web worker or something, just return a jQuery.Deferred
+        return 2 * 3;
+    }
+},{
+    name: 'bar',
+    // this example creates a Deferred manually. $.ajax and
+    // all the $.Model finder methods will also return Deferreds
+    factory: function() {
+        var def;
+        def = $.Deferred();
+        setTimeout(function() {
+            return def.resolve(123);
+        }, 200);
+        return def;
+    }
+});
+
+// pass injector the list of dependencies and the function to inject
+var alertFoo = injector('foo',function(foo) {
+    alert(foo);
+});
+
+alertFoo(); // alerts 6
+
+var alertBar = injector('bar',function(bar) {
+    // notice that bar is the result of the deferred,
+    // you never have to deal with a deferred directly
+    alert(bar);
+    return 'result';
+});
+
+alertBar(); // alerts 123
+
+// your injected function always returns a Deferred
+alertBar().then(function(result) {
+    alert(result); // alerts 'result'
+});
+</code></pre>
+
+<p>Notice that the names passed to injector have to match the name of the dependency.</p>
+
+<p>Also, your injected function will return a <code>Deferred</code>, which will resolve to the result.</p>
+
+<h2>Injector Context / Unbound Functions</h2>
+
+<p>Sometimes you need to write a function that will be used in multiple contexts. You can't use the injector directly in this case, as that would create a function that will be injected by just that injector. You need a way to create a function that can use whatever injector context it happens to be called in. This is called an unbound function.</p>
+
+<p>To create an unbound function, we use <code>Inject.require</code>. Calling a bound function sets the context while that funcion is executing, so any unbound functions called within the stack of a bound function will be injected with the bound function's injector.</p>
+
+<p>For <code>Inject.require</code> where the function is <em>called</em> determines which injector it uses, which is why we say it is unbound.</p>
+
+<pre><code>var alertFoo = Inject.require('foo',function(foo) {
+    alert(foo);
+});
+
+var injector1 = Inject({
+    name: 'foo',
+    factory: function() {
+        return 123;
+    }
+});
+var injector2 = Inject({
+    name: 'foo',
+    factory: function() {
+        return 456;
+    }
+});
+
+injector1(function() {
+    alertFoo(); // alert 123
+})();
+
+injector2(function() {
+    alertFoo(); // alert 456
+})();
+
+alertFoo(); // ERROR! No injector is available!
+</code></pre>
+
+<p>There is also <code>Inject.require.named</code>, which lets you create named unbound functions just like <code>injector.named</code>.</p>
+
+<h3>Capturing the current context</h3>
+
+<p>Calling a bound function will set the context, but what about functions that need to be called outside of the stack of a bound function?</p>
+
+<pre><code>var alertFoo = Inject.require('foo',function(foo) {
+    alert(foo);
+});
+
+injector(function() {
+    setTimeout(function() {
+        alertFoo(); // ERROR! No injector is available!
+    },500);
+})();
+</code></pre>
+
+<p>You can use <code>Inject.useCurrent</code> to define a function that will rebind the context to whatever context the function is declared in.</p>
+
+<pre><code>injector(function() {
+    setTimeout(Inject.useCurrent(function() {
+        alertFoo(); // OK!
+    }),500);
+})();
+</code></pre>
+
+<p>Note that <code>useCurrent</code> will throw an exception if there is no current context. If you want to capture the context if there is one, but otherwise proceed as normal, then pass <code>true</code> as the second argument.</p>
+
+<h3>Controller Action Handlers</h3>
+
+<p>Controllers action handlers will not generally be called inside a bound function, so they have the same problem as an async function call. Any unbound handler function has to get the injector some other way. <code>Inject.setupController</code> will setup the action handlers such that they are bound to the injector context that was active when the controller instance was created:</p>
+
+<pre><code>$.Controller('MyController',{
+    // notice this is the static part
+    setup: Inject.setupController
+    // OR
+    setup: function() {
+        // setup will call this._super, so your setup should not
+        Inject.setupController.apply(this,arguments);
+        // do other setup stuff
+    }
+},{
+});
+
+var injector1 = Inject(...);
+var injector2 = Inject(...);
+
+injector1('foo',function() {
+    // all action handlers will use injector1
+    $('#content1 .myContent').my();
+});
+injector2('foo',function() {
+    // all action handlers will use injector2
+    $('#content2 .somethingElse').my();
+});
+</code></pre>
+
+<p>Under the hood, all <code>setupController</code> is doing is wrapping each action with
+<code>Inject.useCurrent</code>.</p>
+
+<h2>Return Values &amp; Event Handlers</h2>
+
+<p>By default, your injector function returns a <code>$.Deferred</code>. What if you need a different return value? This is a problem when you try to inject a click handler:</p>
+
+<pre><code>".someLink click": Inject.require('foo',function(foo,el,event) {
+    alert(foo);
+    return false; // oops, this doesn't work, the link is loaded...
+    // event.preventDefault() would also not work if any dependency was still loading asynchronously
+})
+</code></pre>
+
+<p>To fix this, use <code>andReturn</code>:</p>
+
+<pre><code>".someLink click": Inject.require('foo',function(foo,el,event) {
+    alert(foo);
+}).andReturn(false)
+</code></pre>
+
+<p><code>andReturn</code> can also take a function. The function will be passed the $.Deferred from the injected function and any addtional arguments passed in (but not the injected arguments):</p>
+
+<pre><code>".someLink click": Inject.require('foo',function(foo,el,event) {
+    alert(foo);
+}).andReturn(function(deferred,el,event) {
+    event.preventDefault();
+})
+</code></pre>
+
+<h1>Naming</h1>
+
+<p>This section shows how you can inject functions differently based on their name, the class they belong to, or even using the controller's position in the DOM and controller options.</p>
+
+<h2>Named Functions</h2>
+
+<p>What if you don't know the name of the dependency you want injected or the name varies? You can name your function and use a defintion with an <code>inject</code> object to remap its dependencies:</p>
+
+<pre><code>var injector = Inject({
+    // dependency definition
+    name: 'bar',
+    factory: function() {
+        return 2 * 3;
+    }
+},{
+    // inject definition
+    name: 'alertFoo',
+    inject: {
+        foo: 'bar'
+    }
+});
+
+var alertFoo = injector.named('alertFoo')('foo',function(foo) {
+    alert(foo);
+});
+
+alertFoo(); // alert 6
+</code></pre>
+
+<h2>Injecting Class methods</h2>
+
+<p>If you're injecting a method on a class defined with $.Class (jQueryMX),
+you can inject any method in that class by using the class name.</p>
+
+<pre><code>var injector = Inject({
+    name: 'foo',
+    factory: function() {
+        return {bar:123};
+    }
+}, {
+    name: 'TestClass',
+    inject: {
+        thing: 'foo'
+    }
+});
+
+$.Class('TestClass', {}, {
+    foo: injector('thing', function(thing) {
+        alert(thing.bar);
+    })
+});
+
+new TestClass().foo(); // alerts '123'
+</code></pre>
+
+<p>Note: Nothing prevents you from using named functions as methods in your class. The function name will take precedence over the class.</p>
+
+<h2>Injecting Controller methods</h2>
+
+<p>Controller methods can be injected just like any other class method, but also offer two additional features:</p>
+
+<ol>
+<li>Your injector defintion can include a selector, to inject controllers differently depending upon their place in the DOM.</li>
+<li>The controller options can be used to define dependencies and as arguments to parameterized factories (see below).</li>
+</ol><h3>Option Substitution</h3>
+
+<pre><code>var injector = Inject({
+  name: 'foo',
+  factory: function() {
+    return 123;
+  }
+},{
+  name: 'bar',
+  factory: function() {
+    return 456;
+  }
+});
+
+$.Controller('TestController2', {
+  defaults: {
+    thing: 'foo'
+  }
+}, {
+  init: injector('{thing}', function(foo) {
+    alert(foo);
+  })
+});
+
+$('.selector123').test2(); //alerts 123
+$('.selector456').test2({thing:'bar'}); //alerts 456
+</code></pre>
+
+<h3>Inject by Selector</h3>
+
+<pre><code>var injector = Inject({
+    name: 'foo',
+    factory: function() {
+        return 123;
+    }
+},{
+    name: 'bar',
+    factory: function() {
+        return 456;
+    }
+},{
+    name: 'TestController2',
+    inject: {
+        thing: 'foo'
+    }
+},{
+    name: 'TestController2',
+    controller: '.selector456',
+    inject: {
+        thing: 'bar'
+    }
+});
+
+$.Controller('TestController2', {
+}, {
+    init: injector('thing', function(foo) {
+        alert(foo);
+    })
+});
+
+$('.selector123').test2(); //alerts 123
+$('.selector456').test2(); //alerts 456
+</code></pre>
+
+<p>Using a selector, we didn't have to pass an option to the 2nd controller to inject it differently.</p>
+
+<h3>Parameterized Factories</h3>
+
+<p>Factories used by controllers can take options as parameters, to allow for very flexible injection:</p>
+
+<pre><code>var injector = Inject({
+    name: 'foo',
+    // a = optionA and b = optionB below
+    factory: function(a,b) {
+        return a + b;
+    }
+});
+
+$.Controller('TestController2', {
+}, {
+    init:injector('foo(optionA,optionB)',function(foo) {
+        alert(foo);
+    })
+});
+
+$('.selector123').test2({
+    optionA: 1,
+    optionB: 2
+}); //alerts 3 (1+2)
+</code></pre>
+
+<p>Parameter names correspond to controller options but should not be contained in <code>{}</code>.</p>
+
+<h2>Injecting Constructors</h2>
+
+<h3>Injecting controller options</h3>
+
+<p>The injector can set values on the options object passed to your controller by using the <code>Inject.setupController</code> method as your static setup method. This enables templated event binding on injected values (JMVC 3.2+).</p>
+
+<p>Note that the controller instance itself is not modified, just the initial options hash that is passed in and the injector will <em>not</em> override options that are already defined, because they have been passed in to the controller at the point of creation:</p>
+
+<pre><code>$.Controller('Foo',{
+    // note this is the Static setup method
+    setup: Inject.setupController // also fixes controller actions
+},{
+    init: function() {
+        // alerts "Hello Bob!"
+        alert(this.options.foo + this.options.bar);
+    },
+    "{model} foo": function(model,event) {
+        // foo changed! do something!
+    }
+});
+
+Inject({
+    name: 'bar',
+    factory: function() {
+        return 'Hello ';
+    }
+},{
+    name: 'baz',
+    factory: function() {
+        return 'World!';
+    }
+},{
+    name: 'someModel',
+    factory: // ...
+},{
+    name: 'Foo',
+    options: {
+        foo: 'bar',
+        bar: 'baz',
+        model: 'someModel'
+    }
+})(function() {
+    $('#foo').foo({bar: 'Bob!'});
+}).call(this);
+</code></pre>
+
+<h3>Injecting Attributes</h3>
+
+<p>Similarly, classes that take a hash of attribute values as the first argument to their contructor can have injected values set.</p>
+
+<p>Note that the class instance itself is not modified, just what is passed to the constuctor and the injector will <em>not</em> override values that are already defined:</p>
+
+<pre><code>$.Observe('Foo',{
+    // note this is the Static setup method
+    setup: Inject.setup
+},{
+    init: function() {
+        // baz = "Hello Bob!"
+        this.baz = this.foo + this.bar;
+    }
+});
+
+Inject({
+    name: 'bar',
+    factory: function() {
+        return 'Hello ';
+    }
+},{
+    name: 'baz',
+    factory: function() {
+        return 'World!';
+    }
+},{
+    name: 'Foo',
+    attrs: {
+        foo: 'bar',
+        bar: 'baz'
+    }
+})(function() {
+    new Foo({bar:'Bob!'}).done(function(foo) {
+        alert(foo.baz);
+    });
+}).call(this);
+</code></pre>
+
+<h1>Misc</h1>
+
+<h2>Caching</h2>
+
+<p>Your factory function is called every time a dependency needs to be injected. If you are injecting a resource that needs to be loaded, that wont be very efficient. You'll want to cache the dependency after it is first loaded, to avoid making lots of expensive calls.</p>
+
+<p><code>Inject.cache</code> creates a helper function that will do that for you:</p>
+
+<pre><code>var number = 1;
+var singleton = Inject.cache();
+var injector = Inject({
+    name: 'foo',
+    factory: singleton('foo',function() {
+        return number++;
+    })
+});
+alertFoo(); // alerts 1
+alertFoo(); // also alerts 1
+</code></pre>
+
+<p>Without the cache, the 2nd call of <code>alertFoo()</code> would have alerted 2.</p>
+
+<p>The first argument to the cache function is the unique key for the cached value. You can use the key to clear the cached value at a later time so that the factory will be called again:</p>
+
+<pre><code>singleton.clear('foo');
+alertFoo(); // alerts 2
+alertFoo(); // also alerts 2
+</code></pre>
+
+<p>Since your cache key will often also be the name of the dependency, the cache function has a helper that will produce the whole definition for you:</p>
+
+<pre><code>var injector = Inject(
+    singleton.def('foo',function() {
+        return number++;
+    })
+);
+</code></pre>
+
+<h2>Simple singletons</h2>
+
+<p>If you have a simple singleton that will never need to be changed for the life of the injector, including <code>singleton: true</code> in your definition will setup caching automatically.</p>
+
+<h2>Eager loading</h2>
+
+<p>If your definition includs <code>eager: true</code>, your factory will be called immediately after the injector is created. This is useful for preloading dependencies.</p>
+
+<pre><code>var number = 1;
+var singleton = Inject.cache();
+var injector = Inject({
+    name: 'foo',
+    eager: true,
+    factory: singleton(function() {
+        return number++;
+    })
+});
+// number === 2
+alertFoo(); // alerts 1, since 1 was cached
+</code></pre>
+
+<p>Note that you can use the <code>def</code> shortcut for eager dependencies, just pass <code>true</code> as the 3rd arugment.</p>
+
+<h2>Destroying the injector</h2>
+
+<p>The injector has a destroy method:</p>
+
+<pre><code>injector.destroy();
+</code></pre>
+
+<p>Once it is called, any function that was bound to that injector will become a noop, and functions that have been called and are waiting for dependencies to resolve will also never execute.</p>
+
+<p>This is useful when you know you are done with an injector and want to cleanup any functions that may have been bound to it.</p>
+
+<h1>Plugins</h1>
+
+<p>The injector has some simple but powerful support for plugins. First lets define our vocabulary:</p>
+
+<ul>
+<li>
+<p><strong>target</strong> - this is the <code>this</code> of the injected function. e.g.,</p>
+
+<pre><code>foo.bar(); // if bar is injected, its target is foo
+</code></pre>
+</li>
+<li><p><strong>definition</strong> - definitions are the configuration objects you passed in when creating the injector.  Plugins may produce additional definitions. All definitions are merged to create the final definition, with later definitions taking precedence. Plugin definitions are always added after the initial definitions.</p></li>
+</ul><p>You create a plugin like this:</p>
+
+<pre><code> // plugin hooks run in the order the plugins are defined
+// all hooks are optional
+Inject.plugin({
+    /**
+     * @param pluginSupport see "Plugin Support" below
+     */
+    init: function(pluginSupport) {
+        this.support = pluginSupport;
+        // other setup goes here
+    },
+    /**
+     * Called when a new injector is created. This gives your plugin an
+     * opportunity to pre-process all definitions and setup any internal
+     * state it needs per injector.
+     *
+     * @param {Array} definitionNames the names of all definitions known
+     * to the injector when it is created.
+     * @param {Number} id the unique id of the created injector
+     */
+    onCreate: function(definitionNames,id) {
+        this.injectorData[id] = {something};
+
+        $.each(definitionNames,function(name) {
+            var def = this.support.definition(name);
+            // inspect the definition
+        });
+    },
+    // hook so you can cleanup anything created in onCreate
+    onDestroy: function(id) {
+        delete this.injectorData[id];
+    },
+    /**
+     * Gives the plugin a chance to provide additional definition
+     * for a target.
+     *
+     * This is called each time an injected funtion is called, so
+     * make it fast!
+     *
+     * pluginSupport.definition calls this method, so unless you
+     * are very clever,
+     * you will cause a stack overflow if you try to get other
+     * definitions from this method.
+     *
+     * @param target the object(this) of the function being injected.
+     * @param definitions an array of the definitions supplied to
+     * the injector that match the target. Includes definitions
+     * created by plugins that ran before this one.
+     * @return an additional definition object that will override
+     * the previous definitions. Or nothing if you have no overrides.
+     */
+    processDefinition: function(target,definitions) {
+        $.each(definitions,function() {
+            // inspect the definition object
+        });
+        // inspect the target object being injected
+        return { definition: 'overrides' };
+    },
+    /**
+     * Gives the plugin a chance to provide its own factory
+     * function to resolve a dependency. The last plugin to return
+     * a factory "wins."
+     *
+     * This is called every time a dependency needs to be resolved
+     * (multiple times per function call), so make it fast!
+     *
+     * @param target the object (this) the function being injected
+     * is called on.
+     * @param nameToResolve the name being resolved. This is the
+     * name after any inject mapping is applied.
+     * @param targetDefintion - the definition of the target.
+     * @return the new factory function, or nothing to keep the
+     * original.
+     */
+    resolveFactory: function(target,nameToResolve,targetDefinition) {
+        // get the current definition if you need it (good for
+        // wrapping/transforming results)
+        var definition = this.support.definition(nameToResolve);
+
+        // inspect targetDefintion and target to determine if you
+        // want a new factory
+
+        return newFactoryFunction;
+    }
+});
+</code></pre>
+
+<h2>Plugin Support</h2>
+
+<p>The plugin support object has several methods that may be useful to your plugin:</p>
+
+<ul>
+<li>
+<code>addDefinition({name:name,factory:...})</code> - Allows your plugin to add a <strong>permanent</strong> definition to the current injector. This is the same as if the definition was appended to the definitions provided when the injector was created. The name key is required.</li>
+<li>
+<code>definition(name/target)</code> - Returns the definition that would be used to resolve or inject the name or the target. This is handy for getting the factory for a dependency.
+When looking up the definition of a target, keep in mind that some plugins alter the definition based on the target's properties, so the final definition may be different if you pass a name instead of the real target.</li>
+<li>
+<code>injectorId()</code> - Returns the unique ID of the current injector.</li>
+</ul><p>Definitions are simple objects, so you can be creative with them. The injector core only processes <code>name</code>, <code>factory</code>, and <code>inject</code>. Any additional keys can be used as hooks by plugins. All the controller and Class enhancements are implemented via plugins as well as the singleton and eager options.</p>
+
+<p>As all plugins apply to all injectors, be sure to give your plugin hooks nice uniquely namespaced names.</p>
+
+<p>If your plugin can be configed differently for different injectors, you can even add definitions to support that configuration:</p>
+
+<pre><code>Inject({
+    name: 'myplugin-config',
+    launchEveryZig: true
+});
+
+...
+
+if(pluginSupport.definition('myplugin-config').launchEveryZig) {
+    // you heard the man, launch every zig!
+}
+</code></pre>
+      </section>
+      <footer>
+        <p>Project maintained by <a href="https://github.com/Spredfast">Spredfast</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="http://twitter.com/#!/michigangraham">mattgraham</a></small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><!--<![endif]-->
+    
+  </body>
+</html>
