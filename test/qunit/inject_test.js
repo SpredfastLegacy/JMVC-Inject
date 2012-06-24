@@ -293,6 +293,51 @@
     })();
   });
 
+  test("singleton: true", function() {
+    var calls, injector;
+    calls = 0;
+    injector = Inject({
+      name: 'foo',
+      singleton: true,
+      factory: function() {
+        return ++calls;
+      }
+    });
+    equals(calls, 0, 'singletons are not eager by default');
+    injector('foo', function(i) {
+      return equals(i, 1);
+    })();
+    injector('foo', function(i) {
+      return equals(i, 1);
+    })();
+    return injector('foo', function(i) {
+      return equals(i, 1);
+    })();
+  });
+
+  test("eager singleton", function() {
+    var calls, injector;
+    calls = 0;
+    injector = Inject({
+      name: 'foo',
+      eager: true,
+      singleton: true,
+      factory: function() {
+        return ++calls;
+      }
+    });
+    equals(calls, 1, 'eager');
+    injector('foo', function(i) {
+      return equals(i, 1);
+    })();
+    injector('foo', function(i) {
+      return equals(i, 1);
+    })();
+    return injector('foo', function(i) {
+      return equals(i, 1);
+    })();
+  });
+
   test("context sharing", function() {
     var contextA, contextB, shared, singleton;
     singleton = Inject.cache();
@@ -639,6 +684,31 @@
         return equals(foo.baz, 'Hello Bob!');
       });
     }).call(this);
+  });
+
+  test('plugin onDestroy', function() {
+    var count, inject, inject2;
+    count = 0;
+    Inject.plugin({
+      onCreate: function() {
+        return count++;
+      },
+      onDestroy: function() {
+        return count--;
+      }
+    });
+    equals(count, 0);
+    inject = Inject({});
+    equals(count, 1, 'onCreate called');
+    inject.destroy();
+    equals(count, 0, 'onDestroy called');
+    inject = Inject({});
+    inject2 = Inject({});
+    equals(count, 2, 'onCreate called for each injector');
+    inject.destroy();
+    equals(count, 1, 'onDestroy called once');
+    inject2.destroy();
+    return equals(count, 0, 'onDestroy called for both');
   });
 
 }).call(this);

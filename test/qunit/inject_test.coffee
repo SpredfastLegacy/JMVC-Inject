@@ -242,6 +242,33 @@ test "eager: true", ->
 		equals(123,foo)
 	)()
 
+test "singleton: true", ->
+	calls = 0
+	injector = Inject
+		name: 'foo'
+		singleton: true
+		factory: ->
+			++calls
+
+	equals(calls,0,'singletons are not eager by default')
+	injector('foo',(i) -> equals(i,1) )();
+	injector('foo',(i) -> equals(i,1) )();
+	injector('foo',(i) -> equals(i,1) )();
+
+test "eager singleton", ->
+	calls = 0
+	injector = Inject
+		name: 'foo'
+		eager: true
+		singleton: true
+		factory: ->
+			++calls
+
+	equals(calls,1,'eager')
+	injector('foo',(i) -> equals(i,1) )();
+	injector('foo',(i) -> equals(i,1) )();
+	injector('foo',(i) -> equals(i,1) )();
+
 test "context sharing", ->
 	singleton = Inject.cache()
 	shared = Inject( singleton.def('sharedFoo', ()-> qux:987) )
@@ -525,3 +552,24 @@ test 'injecting attrs', ->
 		new Foo({bar:'Bob!'}).done (foo) ->
 			equals(foo.baz,'Hello Bob!')
 	).call(this);
+
+test 'plugin onDestroy', ->
+	count = 0
+	Inject.plugin
+		onCreate: ->
+			count++
+		onDestroy: ->
+			count--
+
+	equals(count,0)
+	inject = Inject({})
+	equals(count,1,'onCreate called')
+	inject.destroy()
+	equals(count,0,'onDestroy called')
+	inject = Inject({})
+	inject2 = Inject({})
+	equals(count,2,'onCreate called for each injector')
+	inject.destroy()
+	equals(count,1,'onDestroy called once')
+	inject2.destroy()
+	equals(count,0,'onDestroy called for both')

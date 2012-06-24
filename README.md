@@ -475,6 +475,10 @@ Since your cache key will often also be the name of the dependency, the cache fu
 		})
 	);
 
+## Simple singletons
+
+If you have a simple singleton that will never need to be changed for the life of the injector, including `singleton: true` in your definition will setup caching automatically.
+
 ## Eager loading
 
 If your definition includs `eager: true`, your factory will be called immediately after the injector is created. This is useful for preloading dependencies.
@@ -519,18 +523,32 @@ You create a plugin like this:
     // all hooks are optional
     Inject.plugin({
         /**
-         * @param pluginSupport provides `definition(name/target)`
-         * which returns the definition that would be used to resolve
-         * or inject the name or the target. This is handy for getting
-         * the factory for a dependency.
-         * When looking up the definition of a target, keep in mind
-         * that some plugins alter the definition based on the target's
-         * properties, so the final definition may be different if you
-         * pass a name instead of the real target.
+         * @param pluginSupport see "Plugin Support" below
          */
         init: function(pluginSupport) {
             this.support = pluginSupport;
             // other setup goes here
+        },
+        /**
+         * Called when a new injector is created. This gives your plugin an
+         * opportunity to pre-process all definitions and setup any internal
+         * state it needs per injector.
+         *
+         * @param {Array} definitionNames the names of all definitions known
+         * to the injector when it is created.
+         * @param {Number} id the unique id of the created injector
+         */
+        onCreate: function(definitionNames,id) {
+        	this.injectorData[id] = {something};
+
+        	$.each(definitionNames,function(name) {
+	        	var def = this.support.definition(name);
+	        	// inspect the definition
+        	});
+        },
+        // hook so you can cleanup anything created in onCreate
+        onDestroy: function(id) {
+        	delete this.injectorData[id];
         },
         /**
          * Gives the plugin a chance to provide additional definition
@@ -586,6 +604,28 @@ You create a plugin like this:
         }
     });
 
-The injector core only processes `name`, `factory`, `inject` and `eager`. Any additional keys can be used as hooks by plugins. All the controller and Class enhancements are implemented via plugins.
+## Plugin Support
+
+The plugin support object has several methods that may be useful to your plugin:
+
+ * `addDefinition({name:name,factory:...})` - Allows your plugin to add a __permanent__ definition to the current injector. This is the same as if the definition was appended to the definitions provided when the injector was created. The name key is required.
+ * `definition(name/target)` - Returns the definition that would be used to resolve or inject the name or the target. This is handy for getting the factory for a dependency.
+ When looking up the definition of a target, keep in mind that some plugins alter the definition based on the target's properties, so the final definition may be different if you pass a name instead of the real target.
+ * `injectorId()` - Returns the unique ID of the current injector.
+
+Definitions are simple objects, so you can be creative with them. The injector core only processes `name`, `factory`, and `inject`. Any additional keys can be used as hooks by plugins. All the controller and Class enhancements are implemented via plugins as well as the singleton and eager options.
 
 As all plugins apply to all injectors, be sure to give your plugin hooks nice uniquely namespaced names.
+
+If your plugin can be configed differently for different injectors, you can even add definitions to support that configuration:
+
+    Inject({
+        name: 'myplugin-config',
+        launchEveryZig: true
+    });
+
+    ...
+
+    if(pluginSupport.definition('myplugin-config').launchEveryZig) {
+        // you heard the man, launch every zig!
+    }

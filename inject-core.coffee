@@ -37,9 +37,9 @@ else
 CONTEXT = []
 PLUGINS = []
 
+IDS = 0
+
 inject = (defs...)->
-	factories = {}
-	results = {}
 	defs = groupBy(defs,'name')
 	eager = []
 
@@ -52,7 +52,7 @@ inject = (defs...)->
 
 		resolve = (name) ->
 			realName = mapping(name)
-			factory = factories[realName]
+			factory = def.factory for def in (defs[realName] || []) when def.factory
 
 			# let the plugins override the factory
 			for plugin in PLUGINS when plugin.resolveFactory
@@ -79,25 +79,18 @@ inject = (defs...)->
 
 		def
 
-	injector = whenInjected(resolver,definition)
+	injector = whenInjected resolver,
+		definition: definition
+		id: id = ++IDS
+		add:  (name,newDef)->
+			defs[name] = defs[name] || []
+			defs[name].push(newDef)
 
-	# pre-create factories
-	for name, configs of defs
-		def = {}
-
-		D.extend(true,def,d) for d in configs
-
-		name = def.name
-		factory = def.factory
-
-		eager.push(factory) if def.eager
-
-		factories[name] = factory
-
-	# run the eager factories (presumably they cache themselves)
-	# eager factories are built in to make it easier to resolve dependencies of the eager factory
-	useInjector({injector:injector,definition:definition}, ->
-		factory() for factory in eager
+	# run plugins
+	injector( ->
+		definitions = {}
+		for plugin in PLUGINS when plugin.onCreate
+			plugin.onCreate((name for name, config of defs),id)
 	).call(this)
 
 	injector
@@ -145,15 +138,15 @@ noContext = ->
 	You need to call this inside an injected function or an inject.useCurrent function.""")
 
 
-whenInjected = (resolver,definition) ->
+whenInjected = (resolver,ctx) ->
 	destroyed = false
 	# injectorFor creates requires(), which is what the user sees as the injector
 	injectorFor = (name) ->
 		requires = (dependencies...,fn)->
-			injectContext =
+			injectContext = D.extend(true,
 				injector: injector
 				name: name
-				definition: definition
+			,ctx)
 			fn = useInjector injectContext, fn # make sure the function retains the right context
 			# when takes a list of the dependencies and the function to inject
 			# and returns a function that will resolve the dependencies and pipe them into the function
@@ -175,6 +168,7 @@ whenInjected = (resolver,definition) ->
 	injector = injectorFor() # no name resolves by the target object
 	injector.named = injectorFor
 	injector.destroy = ->
+		plugin.onDestroy(ctx.id) for plugin in PLUGINS when plugin.onDestroy
 		destroyed = true
 	injector
 
@@ -201,18 +195,21 @@ exports.Inject = inject
 
 ## Plugins ##
 
-###
-	Plugins can define 3 methods:
-
-	* init(pluginSupport) - passed the plugin support object, which has some helper functions.
-	* processDefinition(target,definitions) -
-		can return an additional definition object that will override the other definitions.
-		DO NOT call pluginSupport.definition inside this method.
-	* resolveFactory(target,name,targetDefinition) -
-		can return a factory function that will override the defined factory.
-###
-
 pluginSupport =
+	###
+		Allows the plugin to add an additional permanent definition to the current
+		injector.
+
+		@param {Object} def the new definition to add
+	###
+	addDefinition: (def) ->
+		context = last(CONTEXT)
+
+		unless context
+			noContext()
+
+		context.add(def.name,def)
+
 	###
 		Helper for getting a copy of the definition used to inject the given object in the current context.
 
@@ -233,6 +230,17 @@ pluginSupport =
 					fullName: target
 
 		context.definition(target)
+
+	###
+		@return the unique id of the current injector
+	###
+	injectorId: ->
+		context = last(CONTEXT)
+
+		unless context
+			noContext()
+
+		context.id
 
 inject.plugin = (plugin)->
 	PLUGINS.push(plugin)

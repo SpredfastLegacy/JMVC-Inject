@@ -7,7 +7,7 @@
 
 
 (function() {
-  var CONTEXT, D, PLUGINS, andReturn, bind, error, exports, getClass, getName, groupBy, inject, injectUnbound, last, mapper, noContext, pluginSupport, useInjector, whenInjected, window,
+  var CONTEXT, D, IDS, PLUGINS, andReturn, bind, error, exports, getClass, getName, groupBy, inject, injectUnbound, last, mapper, noContext, pluginSupport, useInjector, whenInjected, window,
     __slice = [].slice;
 
   window = this;
@@ -55,11 +55,11 @@
 
   PLUGINS = [];
 
+  IDS = 0;
+
   inject = function() {
-    var configs, d, def, definition, defs, eager, factories, factory, injector, name, resolver, results, _i, _len;
+    var definition, defs, eager, id, injector, resolver;
     defs = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-    factories = {};
-    results = {};
     defs = groupBy(defs, 'name');
     eager = [];
     resolver = function(obj) {
@@ -68,11 +68,17 @@
       controller = def.controllerInstance;
       mapping = mapper(def);
       return resolve = function(name) {
-        var factory, plugin, realName, _i, _len;
+        var factory, plugin, realName, _i, _j, _len, _len1, _ref;
         realName = mapping(name);
-        factory = factories[realName];
-        for (_i = 0, _len = PLUGINS.length; _i < _len; _i++) {
-          plugin = PLUGINS[_i];
+        _ref = defs[realName] || [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          def = _ref[_i];
+          if (def.factory) {
+            factory = def.factory;
+          }
+        }
+        for (_j = 0, _len1 = PLUGINS.length; _j < _len1; _j++) {
+          plugin = PLUGINS[_j];
           if (plugin.resolveFactory) {
             factory = plugin.resolveFactory(obj, realName, def) || factory;
           }
@@ -101,30 +107,31 @@
       }
       return def;
     };
-    injector = whenInjected(resolver, definition);
-    for (name in defs) {
-      configs = defs[name];
-      def = {};
-      for (_i = 0, _len = configs.length; _i < _len; _i++) {
-        d = configs[_i];
-        D.extend(true, def, d);
+    injector = whenInjected(resolver, {
+      definition: definition,
+      id: id = ++IDS,
+      add: function(name, newDef) {
+        defs[name] = defs[name] || [];
+        return defs[name].push(newDef);
       }
-      name = def.name;
-      factory = def.factory;
-      if (def.eager) {
-        eager.push(factory);
-      }
-      factories[name] = factory;
-    }
-    useInjector({
-      injector: injector,
-      definition: definition
-    }, function() {
-      var _j, _len1, _results;
+    });
+    injector(function() {
+      var config, definitions, name, plugin, _i, _len, _results;
+      definitions = {};
       _results = [];
-      for (_j = 0, _len1 = eager.length; _j < _len1; _j++) {
-        factory = eager[_j];
-        _results.push(factory());
+      for (_i = 0, _len = PLUGINS.length; _i < _len; _i++) {
+        plugin = PLUGINS[_i];
+        if (plugin.onCreate) {
+          _results.push(plugin.onCreate((function() {
+            var _results1;
+            _results1 = [];
+            for (name in defs) {
+              config = defs[name];
+              _results1.push(name);
+            }
+            return _results1;
+          })(), id));
+        }
       }
       return _results;
     }).call(this);
@@ -191,7 +198,7 @@
     throw new Error("There is no current injector.\nYou need to call this inside an injected function or an inject.useCurrent function.");
   };
 
-  whenInjected = function(resolver, definition) {
+  whenInjected = function(resolver, ctx) {
     var destroyed, injector, injectorFor;
     destroyed = false;
     injectorFor = function(name) {
@@ -199,11 +206,10 @@
       return requires = function() {
         var dependencies, fn, injectContext, injected, _i;
         dependencies = 2 <= arguments.length ? __slice.call(arguments, 0, _i = arguments.length - 1) : (_i = 0, []), fn = arguments[_i++];
-        injectContext = {
+        injectContext = D.extend(true, {
           injector: injector,
-          name: name,
-          definition: definition
-        };
+          name: name
+        }, ctx);
         fn = useInjector(injectContext, fn);
         injected = useInjector(injectContext, function() {
           var args, d, deferreds, resolve, target;
@@ -240,6 +246,13 @@
     injector = injectorFor();
     injector.named = injectorFor;
     injector.destroy = function() {
+      var plugin, _i, _len;
+      for (_i = 0, _len = PLUGINS.length; _i < _len; _i++) {
+        plugin = PLUGINS[_i];
+        if (plugin.onDestroy) {
+          plugin.onDestroy(ctx.id);
+        }
+      }
       return destroyed = true;
     };
     return injector;
@@ -282,19 +295,22 @@
 
   exports.Inject = inject;
 
-  /*
-  	Plugins can define 3 methods:
-  
-  	* init(pluginSupport) - passed the plugin support object, which has some helper functions.
-  	* processDefinition(target,definitions) -
-  		can return an additional definition object that will override the other definitions.
-  		DO NOT call pluginSupport.definition inside this method.
-  	* resolveFactory(target,name,targetDefinition) -
-  		can return a factory function that will override the defined factory.
-  */
-
-
   pluginSupport = {
+    /*
+    		Allows the plugin to add an additional permanent definition to the current
+    		injector.
+    
+    		@param {Object} def the new definition to add
+    */
+
+    addDefinition: function(def) {
+      var context;
+      context = last(CONTEXT);
+      if (!context) {
+        noContext();
+      }
+      return context.add(def.name, def);
+    },
     /*
     		Helper for getting a copy of the definition used to inject the given object in the current context.
     
@@ -317,6 +333,18 @@
         };
       }
       return context.definition(target);
+    },
+    /*
+    		@return the unique id of the current injector
+    */
+
+    injectorId: function() {
+      var context;
+      context = last(CONTEXT);
+      if (!context) {
+        noContext();
+      }
+      return context.id;
     }
   };
 

@@ -47,3 +47,25 @@ find = (array,fn,context) ->
 	fn ?= (it) -> it
 	for value, index in array
 		return value if fn.call(context,value,index)
+
+
+caches = {}
+pluginSupport = null
+
+# support singleton: true
+Inject.plugin
+	init: (support) ->
+		pluginSupport = support
+
+	onCreate: (names,id) ->
+		cache = caches[id] = Inject.cache()
+
+		for name in names
+			config = pluginSupport.definition(name)
+			if config.singleton
+				pluginSupport.addDefinition
+					name: name
+					factory: cache(name,config.factory)
+
+	onDestroy: (id) ->
+		delete caches[id]

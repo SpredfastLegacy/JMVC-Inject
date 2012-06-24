@@ -1,5 +1,5 @@
 if steal.plugins
-	steal.plugins('jquery')('//inject/inject-core.js')('//inject/controller.js').
-		then('//inject/cache.js')
+	steal.plugins('jquery')('./inject-core.js','./controller.js').
+		then('./cache.js','./eager.js')
 else
-	steal('jquery','./inject-core.js','./controller.js').then('./cache.js')
+	steal('jquery','./inject-core.js','./controller.js').then('./cache.js','./eager.js')
