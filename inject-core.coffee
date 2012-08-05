@@ -26,8 +26,8 @@ D = if window.can
 else
 	unless window.jQuery or window.$?.when and window.$?.extend
 		throw new Error("Either JavaScriptMVC, DoneJS, CanJS or jQuery/Zepto is required.")
-	when: bind(window.jQuery or window.$,'when')
-	extend: bind(window.jQuery or window.$,'extend')
+	when: bind(window.jQuery or window.$ or window.can,'when')
+	extend: bind(window.jQuery or window.$ or window.can,'extend')
 
 
 
@@ -38,6 +38,10 @@ CONTEXT = []
 PLUGINS = []
 
 IDS = 0
+
+identify = (defs) ->
+	name = def.injectorName for def in defs['injector-config'] or []
+	name or ("UnnamedInjector("+(name for name, config of defs).join(', ')+")")
 
 inject = (defs...)->
 	defs = groupBy(defs,'name')
@@ -62,7 +66,7 @@ inject = (defs...)->
 				for plugin in PLUGINS when plugin.factoryMissing
 					factory = plugin.factoryMissing(obj,realName,def) || factory
 				unless factory
-					throw new Error("Cannot resolve '#{realName}' AKA '#{name}'")
+					throw new Error("Cannot resolve '#{realName}' AKA '#{name}' in "+identify(defs))
 
 			factory.call(this)
 
@@ -104,7 +108,7 @@ injectUnbound = (name) ->
 		injectCurrent = ->
 			context = last(CONTEXT)
 			unless context
-				noContext()
+				noContext(args)
 			injected = context.injector.named(name).apply(this,args) # create an injected function
 			injected.apply(this,arguments) # and call it
 		injectCurrent.andReturn = andReturn
@@ -133,12 +137,15 @@ inject.useCurrent = (args...,fn,ignoreNoContext) ->
 		fn = Inject.require.apply(Inject,args.concat([fn]))
 	context = last(CONTEXT)
 	unless context or ignoreNoContext
-		noContext()
+		noContext(args)
 	if context then useInjector(context,fn) else fn
 
-noContext = ->
-	throw new Error("""There is no current injector.
-	You need to call this inside an injected function or an inject.useCurrent function.""")
+noContext = (args)->
+	if args
+		throw new Error("There is no current injector for: "+args.join(', '))
+	else
+		throw new Error("""There is no current injector.
+You need to call this inside an injected function or an inject.useCurrent function.""")
 
 
 whenInjected = (resolver,ctx) ->

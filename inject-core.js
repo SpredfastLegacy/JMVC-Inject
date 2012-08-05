@@ -7,7 +7,7 @@
 
 
 (function() {
-  var CONTEXT, D, IDS, PLUGINS, andReturn, bind, error, exports, getClass, getName, groupBy, inject, injectUnbound, last, mapper, noContext, pluginSupport, useInjector, whenInjected, window,
+  var CONTEXT, D, IDS, PLUGINS, andReturn, bind, error, exports, getClass, getName, groupBy, identify, inject, injectUnbound, last, mapper, noContext, pluginSupport, useInjector, whenInjected, window,
     __slice = [].slice;
 
   window = this;
@@ -45,8 +45,8 @@
         throw new Error("Either JavaScriptMVC, DoneJS, CanJS or jQuery/Zepto is required.");
       }
       return {
-        when: bind(window.jQuery || window.$, 'when'),
-        extend: bind(window.jQuery || window.$, 'extend')
+        when: bind(window.jQuery || window.$ || window.can, 'when'),
+        extend: bind(window.jQuery || window.$ || window.can, 'extend')
       };
     }
   })();
@@ -56,6 +56,24 @@
   PLUGINS = [];
 
   IDS = 0;
+
+  identify = function(defs) {
+    var config, def, name, _i, _len, _ref;
+    _ref = defs['injector-config'] || [];
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      def = _ref[_i];
+      name = def.injectorName;
+    }
+    return name || ("UnnamedInjector(" + ((function() {
+      var _results;
+      _results = [];
+      for (name in defs) {
+        config = defs[name];
+        _results.push(name);
+      }
+      return _results;
+    })()).join(', ') + ")");
+  };
 
   inject = function() {
     var definition, defs, eager, id, injector, resolver;
@@ -91,7 +109,7 @@
             }
           }
           if (!factory) {
-            throw new Error("Cannot resolve '" + realName + "' AKA '" + name + "'");
+            throw new Error(("Cannot resolve '" + realName + "' AKA '" + name + "' in ") + identify(defs));
           }
         }
         return factory.call(this);
@@ -155,7 +173,7 @@
         var context, injected;
         context = last(CONTEXT);
         if (!context) {
-          noContext();
+          noContext(args);
         }
         injected = context.injector.named(name).apply(this, args);
         return injected.apply(this, arguments);
@@ -193,7 +211,7 @@
     }
     context = last(CONTEXT);
     if (!(context || ignoreNoContext)) {
-      noContext();
+      noContext(args);
     }
     if (context) {
       return useInjector(context, fn);
@@ -202,8 +220,12 @@
     }
   };
 
-  noContext = function() {
-    throw new Error("There is no current injector.\nYou need to call this inside an injected function or an inject.useCurrent function.");
+  noContext = function(args) {
+    if (args) {
+      throw new Error("There is no current injector for: " + args.join(', '));
+    } else {
+      throw new Error("There is no current injector.\nYou need to call this inside an injected function or an inject.useCurrent function.");
+    }
   };
 
   whenInjected = function(resolver, ctx) {
