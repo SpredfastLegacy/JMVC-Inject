@@ -711,4 +711,34 @@
     return equals(count, 0, 'onDestroy called for both');
   });
 
+  test('parent injector', function() {
+    var child, parent;
+    expect(3);
+    parent = Inject({
+      name: 'foo',
+      factory: function() {
+        return 123;
+      }
+    }, {
+      name: 'bar',
+      factory: function() {
+        return 'abc';
+      }
+    });
+    child = Inject({
+      name: 'baz',
+      factory: function() {
+        return 'baz!';
+      }
+    }, {
+      name: 'parent-injector-config',
+      injector: parent
+    });
+    return child('foo', 'bar', 'baz', function(foo, bar, baz) {
+      equals(foo, 123);
+      equals(bar, 'abc');
+      return equals(baz, 'baz!');
+    })();
+  });
+
 }).call(this);

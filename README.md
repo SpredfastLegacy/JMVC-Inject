@@ -507,6 +507,34 @@ Once it is called, any function that was bound to that injector will become a no
 
 This is useful when you know you are done with an injector and want to cleanup any functions that may have been bound to it.
 
+## Parent injector
+
+An injector can have a parent injector:
+
+	var parent = Inject({
+		name: 'foo',
+		factory: function() { reutrn 123; }
+	},{
+		name: 'bar',
+		factory: function() { return 'abc'; }
+	});
+
+	var child = Inject({
+		name: 'baz',
+		factory: function() { return 'baz!'; }
+	},{
+		name: 'parent-injector-config',
+		injector: parent
+	});
+
+	child('foo','bar','baz',function(foo,bar,baz) {
+		equals(foo, 123)
+		equals(bar, 'abc')
+		equals(baz, 'baz!')
+	})();
+
+Any dependency that cannot be resolved by the child injector will be resolved via the parent.
+
 # Plugins
 
 The injector has some simple but powerful support for plugins. First lets define our vocabulary:
@@ -519,7 +547,7 @@ The injector has some simple but powerful support for plugins. First lets define
 
 You create a plugin like this:
 
-     // plugin hooks run in the order the plugins are defined
+    // plugin hooks run in the order the plugins are defined
     // all hooks are optional
     Inject.plugin({
         /**
@@ -601,6 +629,13 @@ You create a plugin like this:
             // want a new factory
 
             return newFactoryFunction;
+        },
+        /**
+         * Same semantics as resolveFactory, but called as a last resort
+         * before throwing an exception.
+         */
+        factoryMissing: function(target,nameToResolve,targetDefinition) {
+            // ...
         }
     });
 

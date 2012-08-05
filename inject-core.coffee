@@ -59,7 +59,10 @@ inject = (defs...)->
 				factory = plugin.resolveFactory(obj,realName,def) || factory
 
 			unless factory
-				throw new Error("Cannot resolve '#{realName}' AKA '#{name}'")
+				for plugin in PLUGINS when plugin.factoryMissing
+					factory = plugin.factoryMissing(obj,realName,def) || factory
+				unless factory
+					throw new Error("Cannot resolve '#{realName}' AKA '#{name}'")
 
 			factory.call(this)
 

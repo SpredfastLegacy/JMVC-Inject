@@ -573,3 +573,27 @@ test 'plugin onDestroy', ->
 	equals(count,1,'onDestroy called once')
 	inject2.destroy()
 	equals(count,0,'onDestroy called for both')
+
+test 'parent injector', ->
+	expect 3
+	parent = Inject({
+		name: 'foo'
+		factory: -> 123
+	},{
+		name: 'bar'
+		factory: -> 'abc'
+	})
+
+	child = Inject({
+		name: 'baz'
+		factory: -> 'baz!'
+	},{
+		name: 'parent-injector-config'
+		injector: parent
+	})
+
+	child('foo','bar','baz',(foo,bar,baz) ->
+		equals foo, 123
+		equals bar, 'abc'
+		equals baz, 'baz!'
+	)()

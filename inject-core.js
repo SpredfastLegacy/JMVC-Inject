@@ -68,7 +68,7 @@
       controller = def.controllerInstance;
       mapping = mapper(def);
       return resolve = function(name) {
-        var factory, plugin, realName, _i, _j, _len, _len1, _ref;
+        var factory, plugin, realName, _i, _j, _k, _len, _len1, _len2, _ref;
         realName = mapping(name);
         _ref = defs[realName] || [];
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -84,7 +84,15 @@
           }
         }
         if (!factory) {
-          throw new Error("Cannot resolve '" + realName + "' AKA '" + name + "'");
+          for (_k = 0, _len2 = PLUGINS.length; _k < _len2; _k++) {
+            plugin = PLUGINS[_k];
+            if (plugin.factoryMissing) {
+              factory = plugin.factoryMissing(obj, realName, def) || factory;
+            }
+          }
+          if (!factory) {
+            throw new Error("Cannot resolve '" + realName + "' AKA '" + name + "'");
+          }
         }
         return factory.call(this);
       };
