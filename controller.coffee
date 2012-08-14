@@ -55,7 +55,7 @@ resolveFactory = (target,name,targetDef) ->
 		$.String.getObject(path,[target.options])
 
 	parts = factoryName.exec(substitute(name,target.options) || name)
-	realName = parts[1]
+	realName = targetDef?.inject?[parts[1]] || parts[1]
 	args = (get(path) for path in parts[3]?.split(',') ? [] when path)
 
 	fn = support.definition(realName)?.factory

@@ -52,7 +52,7 @@
   };
 
   resolveFactory = function(target, name, targetDef) {
-    var args, fn, get, parts, path, realName, _ref;
+    var args, fn, get, parts, path, realName, _ref, _ref1;
     if (!((target != null ? target.element : void 0) && (target != null ? target.Class : void 0))) {
       return;
     }
@@ -60,20 +60,20 @@
       return $.String.getObject(path, [target.options]);
     };
     parts = factoryName.exec(substitute(name, target.options) || name);
-    realName = parts[1];
+    realName = (targetDef != null ? (_ref = targetDef.inject) != null ? _ref[parts[1]] : void 0 : void 0) || parts[1];
     args = (function() {
-      var _i, _len, _ref, _ref1, _ref2, _results;
-      _ref2 = (_ref = (_ref1 = parts[3]) != null ? _ref1.split(',') : void 0) != null ? _ref : [];
+      var _i, _len, _ref1, _ref2, _ref3, _results;
+      _ref3 = (_ref1 = (_ref2 = parts[3]) != null ? _ref2.split(',') : void 0) != null ? _ref1 : [];
       _results = [];
-      for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
-        path = _ref2[_i];
+      for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
+        path = _ref3[_i];
         if (path) {
           _results.push(get(path));
         }
       }
       return _results;
     })();
-    fn = (_ref = support.definition(realName)) != null ? _ref.factory : void 0;
+    fn = (_ref1 = support.definition(realName)) != null ? _ref1.factory : void 0;
     return function() {
       if (fn) {
         return fn.apply(this, args);

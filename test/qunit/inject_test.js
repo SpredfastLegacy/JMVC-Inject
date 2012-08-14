@@ -573,6 +573,11 @@
       factory: function() {
         return 456;
       }
+    }, {
+      name: 'TestController4',
+      inject: {
+        mapMe: 'foo'
+      }
     });
     injector2 = Inject({
       name: 'foo',
@@ -584,14 +589,22 @@
       factory: function() {
         return 654;
       }
+    }, {
+      name: 'TestController4',
+      inject: {
+        mapMe: 'foo'
+      }
     });
     $.Controller('TestController4', {
-      setup: Inject.setupController
+      setup: Inject.setupController,
+      defaults: {
+        foo: 'mapMe'
+      }
     }, {
       /* this is the important part
       */
 
-      ".foo click": Inject.require('foo', function(foo) {
+      ".foo click": Inject.require('{foo}', function(foo) {
         return equals(foo, expected);
       }),
       ".bar click": Inject.require('bar', function(bar) {

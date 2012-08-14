@@ -455,7 +455,12 @@ test "setupControllerActions", ->
 		factory: -> 123
 	},{
 		name: 'bar',
-		factory: -> 456
+		factory: -> 456,
+	},{
+		name: 'TestController4',
+		inject: {
+			mapMe: 'foo'
+		}
 	})
 
 	injector2 = Inject({
@@ -464,13 +469,21 @@ test "setupControllerActions", ->
 	},{
 		name: 'bar',
 		factory: -> 654
+	},{
+		name: 'TestController4',
+		inject: {
+			mapMe: 'foo'
+		}
 	})
 
 	$.Controller('TestController4',{
-		setup: Inject.setupController
+		setup: Inject.setupController,
+		defaults: {
+			foo: 'mapMe'
+		}
 	},{
 		### this is the important part ###
-		".foo click": Inject.require('foo', (foo)->
+		".foo click": Inject.require('{foo}', (foo)->
 			equals(foo,expected)
 		),
 		".bar click": Inject.require('bar', (bar)->
