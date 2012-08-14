@@ -269,6 +269,25 @@ test "eager singleton", ->
 	injector('foo',(i) -> equals(i,1) )();
 	injector('foo',(i) -> equals(i,1) )();
 
+test "can avoid cache loops", ->
+	expect 2
+	cache = Inject.cache()
+	Inject({
+		name: 'foo',
+		factory: Inject.require 'bar', (bar)->
+			bar.foo
+	},cache.def('bar',->
+		bar =
+			foo:123
+		Inject.require('foo',(foo)->
+			bar.bar = foo
+		).call(this)
+		bar
+	))('bar',(bar)->
+		equals(bar.bar,123)
+		equals(bar.foo,123)
+	).call(this)
+
 test "context sharing", ->
 	singleton = Inject.cache()
 	shared = Inject( singleton.def('sharedFoo', ()-> qux:987) )

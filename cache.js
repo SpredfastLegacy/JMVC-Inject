@@ -9,16 +9,20 @@
     singleton = function(name, fn) {
       var cachedFactory;
       return cachedFactory = function() {
-        var args, array, result;
+        var args, array, def, result;
         args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
         array = results[name] || (results[name] = []);
         result = matchArgs(array, args || []);
         if (!result) {
+          def = $.Deferred();
           result = {
-            value: fn.apply(this, args),
+            value: def.promise(),
             args: args
           };
           array.push(result);
+          $.when(fn.apply(this, args)).then(function(r) {
+            return def.resolve(r);
+          });
         }
         return result.value;
       };

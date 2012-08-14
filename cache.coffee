@@ -9,8 +9,14 @@ Inject.cache = ->
 			result = matchArgs(array,args || [])
 
 			unless result
-				result = value: fn.apply(this,args), args: args
-				array.push(result);
+				# XXX always create a deferred for the result to
+				# avoid infinite recursion from reentering the cache
+				# looking for the value
+				def = $.Deferred()
+				result = value: def.promise(), args: args
+				array.push(result)
+				$.when(fn.apply(this,args)).then (r) ->
+					def.resolve(r)
 
 			result.value;
 

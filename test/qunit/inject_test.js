@@ -338,6 +338,30 @@
     })();
   });
 
+  test("can avoid cache loops", function() {
+    var cache;
+    expect(2);
+    cache = Inject.cache();
+    return Inject({
+      name: 'foo',
+      factory: Inject.require('bar', function(bar) {
+        return bar.foo;
+      })
+    }, cache.def('bar', function() {
+      var bar;
+      bar = {
+        foo: 123
+      };
+      Inject.require('foo', function(foo) {
+        return bar.bar = foo;
+      }).call(this);
+      return bar;
+    }))('bar', function(bar) {
+      equals(bar.bar, 123);
+      return equals(bar.foo, 123);
+    }).call(this);
+  });
+
   test("context sharing", function() {
     var contextA, contextB, shared, singleton;
     singleton = Inject.cache();
