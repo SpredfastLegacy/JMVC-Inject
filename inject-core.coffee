@@ -276,3 +276,5 @@ groupBy = (array,fn) ->
 last = (array) ->
 	array?[array?.length - 1]
 
+if this.steal
+	steal () -> inject

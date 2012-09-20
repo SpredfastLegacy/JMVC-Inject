@@ -410,4 +410,10 @@
     return array != null ? array[(array != null ? array.length : void 0) - 1] : void 0;
   };
 
+  if (this.steal) {
+    steal(function() {
+      return inject;
+    });
+  }
+
 }).call(this);
