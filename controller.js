@@ -106,7 +106,7 @@
       throw new Error('setupControllerActions has changed to the static setupController function');
     };
     return exports.setupController = function() {
-      var args, setup;
+      var args, setup, _ref;
       args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
       Inject.setup.arg(1, getOptions).apply(this, arguments);
       setup = this.prototype.setup;
@@ -119,6 +119,9 @@
         }
         return setup.apply(this, arguments);
       };
+      if (typeof can !== "undefined" && can !== null ? (_ref = can.Control) != null ? _ref.setup : void 0 : void 0) {
+        can.Control.setup.apply(this, arguments);
+      }
       return args;
     };
   });

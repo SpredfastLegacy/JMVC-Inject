@@ -93,4 +93,6 @@ else
 			for funcName, action of this.constructor.actions
 				this[funcName] = Inject.useCurrent(this[funcName])
 			setup.apply(this,arguments)
+		if can?.Control?.setup
+			can.Control.setup.apply(this,arguments)
 		args
