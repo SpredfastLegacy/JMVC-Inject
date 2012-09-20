@@ -48,7 +48,7 @@ processDef = (target,defs) ->
 
 resolveFactory = (target,name,targetDef) ->
 	# only process controllers
-	return unless target?.element and target?.Class
+	return unless target?.element and target?.constructor
 
 	# make options substitutions and resolve parameterize factory arguments
 	get = (path) ->
@@ -59,7 +59,8 @@ resolveFactory = (target,name,targetDef) ->
 	args = (get(path) for path in parts[3]?.split(',') ? [] when path)
 
 	fn = support.definition(realName)?.factory
-	-> fn.apply(this,args) if fn
+	if fn
+		-> fn.apply(this,args)
 
 substitute = (string,options) ->
 	string.replace /\{(.+?)\}/g, (param,name) ->

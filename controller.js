@@ -53,7 +53,7 @@
 
   resolveFactory = function(target, name, targetDef) {
     var args, fn, get, parts, path, realName, _ref, _ref1;
-    if (!((target != null ? target.element : void 0) && (target != null ? target.Class : void 0))) {
+    if (!((target != null ? target.element : void 0) && (target != null ? target.constructor : void 0))) {
       return;
     }
     get = function(path) {
@@ -74,11 +74,11 @@
       return _results;
     })();
     fn = (_ref1 = support.definition(realName)) != null ? _ref1.factory : void 0;
-    return function() {
-      if (fn) {
+    if (fn) {
+      return function() {
         return fn.apply(this, args);
-      }
-    };
+      };
+    }
   };
 
   substitute = function(string, options) {
