@@ -20,7 +20,7 @@ getOptions = (Class,support,args) ->
 
 processDef = (target,defs) ->
 	# only process controllers
-	return unless target?.element and target?.Class
+	return unless target?.element and target?.constructor
 
 	# group and collapse
 	# XXX must do them in the same order they are defined
@@ -90,7 +90,7 @@ else
 		Inject.setup.arg(1,getOptions).apply(this,arguments)
 		setup = this.prototype.setup
 		this.prototype.setup = ->
-			for funcName, action of this.Class.actions
+			for funcName, action of this.constructor.actions
 				this[funcName] = Inject.useCurrent(this[funcName])
 			setup.apply(this,arguments)
 		args

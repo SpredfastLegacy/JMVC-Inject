@@ -23,7 +23,7 @@
 
   processDef = function(target, defs) {
     var byKey, d, def, grouped, key, merged, _i, _j, _len, _len1;
-    if (!((target != null ? target.element : void 0) && (target != null ? target.Class : void 0))) {
+    if (!((target != null ? target.element : void 0) && (target != null ? target.constructor : void 0))) {
       return;
     }
     grouped = [];
@@ -112,7 +112,7 @@
       setup = this.prototype.setup;
       this.prototype.setup = function() {
         var action, funcName, _ref;
-        _ref = this.Class.actions;
+        _ref = this.constructor.actions;
         for (funcName in _ref) {
           action = _ref[funcName];
           this[funcName] = Inject.useCurrent(this[funcName]);
