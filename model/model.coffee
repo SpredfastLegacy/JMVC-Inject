@@ -8,10 +8,12 @@ steal 'jquery','inject/inject-core.js','can/model', ($,Inject,Model) ->
 		,true),Inject.useCurrent( ->
 			result.reject.apply(result,arguments)
 		,true)
-		if promise.abort
-			result.abort = promise.abort
 
-		result.promise()
+		ret = result.promise()
+		if promise.abort
+			ret.abort = promise.abort
+
+		ret
 
 	(fn) ->
 		->

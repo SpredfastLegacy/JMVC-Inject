@@ -6,17 +6,18 @@
 
     var pipeInject;
     pipeInject = function(promise) {
-      var result;
+      var result, ret;
       result = $.Deferred();
       promise.then(Inject.useCurrent(function() {
         return result.resolve.apply(result, arguments);
       }, true), Inject.useCurrent(function() {
         return result.reject.apply(result, arguments);
       }, true));
+      ret = result.promise();
       if (promise.abort) {
-        result.abort = promise.abort;
+        ret.abort = promise.abort;
       }
-      return result.promise();
+      return ret;
     };
     return function(fn) {
       return function() {
